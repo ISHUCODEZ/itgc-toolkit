@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Recertification · ITGC Toolkit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div class="shell">
+  <div id="nav"></div>
+  <div class="page-head">
+    <span class="eyebrow">PILLAR 3 · OPERATIONS & MONITORING</span>
+    <h1>User-access recertification tracker</h1>
+    <p class="subtitle">Access that was appropriate at provisioning can drift over time, so it must be <strong>re-reviewed on a cadence</strong>. This tool takes the population of access grants with their last-review dates and shows which are current, due soon, overdue, or never reviewed — the monitoring control that proves access stays appropriate.</p>
+  </div>
+
+  <div class="card" style="padding:1.4rem 1.6rem;margin-bottom:1.3rem;">
+    <div class="dropzone" id="zone">
+      <strong>⬆ Drop an access-review CSV here, or click to browse</strong>
+      <span>Columns: <code>user, system, access_level, last_reviewed</code> (date). Or run the bundled sample.</span>
+    </div>
+    <input type="file" id="fileInput" accept=".csv" style="display:none;">
+    <div class="btn-row">
+      <label style="font-size:.82rem;color:var(--muted);">Review cadence:
+        <select id="cadence" style="background:var(--panel-soft);color:var(--ink);border:1px solid var(--border);border-radius:6px;padding:.3rem .5rem;">
+          <option value="90" selected>90 days (quarterly)</option>
+          <option value="180">180 days (semi-annual)</option>
+          <option value="365">365 days (annual)</option>
+        </select></label>
+      <button class="run-btn" id="sampleBtn">▶ Run sample review population</button>
+    </div>
+    <p id="src" style="color:var(--muted);font-size:.78rem;margin:0;"></p>
+  </div>
+  <div id="results"></div>
+</div>
+<script src="/static/js/common.js"></script>
+<script>
+document.getElementById("nav").innerHTML = navBar("recert");
+function statusPill(s){
+  const cls = s==='Overdue'?'pill-Overdue':s==='Current'?'pill-Current':s==='Never reviewed'?'pill-Never':'pill-Due';
+  return `<span class="pill ${cls}">${s}</span>`;
+}
+function render(R){
+  document.getElementById("src").textContent = `Source: ${R.source} · as of ${R.as_of} · ${R.cadence_days}-day cadence`;
+  const c = R.counts;
+  let html = `<section class="stat-row">
+    <div class="stat card"><div class="stat-label">Total grants</div><div class="stat-value">${R.total_grants}</div></div>
+    <div class="stat card"><div class="stat-label">At risk</div><div class="stat-value" style="color:${R.at_risk?'#f95d54':'#2db757'}">${R.at_risk}</div><div class="stat-note">overdue + never reviewed</div></div>
+    <div class="stat card"><div class="stat-label">Overdue</div><div class="stat-value" style="color:#ff9d3c">${c.Overdue}</div></div>
+    <div class="stat card"><div class="stat-label">Current</div><div class="stat-value" style="color:#2db757">${c.Current}</div><div class="stat-note">${R.current_rate}% in cadence</div></div>
+  </section>`;
+  html += `<div class="card" style="padding:1rem 1.2rem;overflow-x:auto;">
+    <table class="grid-table"><tr><th>User</th><th>System</th><th>Access level</th><th>Last reviewed</th><th>Status</th><th>Days</th></tr>
+    ${R.items.map(it=>`<tr>
+      <td><code>${it.user}</code></td><td>${it.system}</td><td>${it.access_level}</td>
+      <td>${it.last_reviewed}</td><td>${statusPill(it.status)}</td>
+      <td style="color:var(--muted)">${it.status==='Overdue'?it.days+' overdue':it.status==='Due soon'?'in '+it.days:it.status==='Current'?'in '+it.days:'—'}</td>
+    </tr>`).join("")}</table></div>`;
+  document.getElementById("results").innerHTML = html;
+}
+async function run(fd){
+  fd.append("cadence", document.getElementById("cadence").value);
+  try{ render(await API.postForm("recert", fd)); }catch(e){ if(e.status===401)showLogin(); else alert(e.message); }
+}
+document.getElementById("sampleBtn").onclick = ()=>run(new FormData());
+fileDrop("zone","fileInput",(f)=>{ const fd=new FormData(); fd.append("file",f); run(fd); });
+loadMe();
+</script>
+</body>
+</html>

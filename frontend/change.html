@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Change Auditor · ITGC Toolkit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div class="shell">
+  <div id="nav"></div>
+  <div class="page-head">
+    <span class="eyebrow">PILLAR 2 · CHANGE MANAGEMENT</span>
+    <h1>Change-management log auditor</h1>
+    <p class="subtitle">Reads a change-ticket export and tests every change that reached production against the core change controls: <strong>authorisation</strong> (was it approved?), <strong>testing</strong> (is there test evidence?), and <strong>segregation</strong> (is the deployer independent of the developer?). Each failed check becomes a documented exception.</p>
+  </div>
+
+  <div class="card" style="padding:1.4rem 1.6rem;margin-bottom:1.3rem;">
+    <div class="dropzone" id="zone">
+      <strong>⬆ Drop a change-ticket CSV here, or click to browse</strong>
+      <span>Columns: <code>change_id, developer, deployer, approved, tested, type, status</code>. Or run the bundled sample.</span>
+    </div>
+    <input type="file" id="fileInput" accept=".csv" style="display:none;">
+    <div class="btn-row"><button class="run-btn" id="sampleBtn">▶ Run sample change log</button></div>
+    <p id="src" style="color:var(--muted);font-size:.78rem;margin:0;"></p>
+  </div>
+  <div id="results"></div>
+</div>
+<script src="/static/js/common.js"></script>
+<script>
+document.getElementById("nav").innerHTML = navBar("change");
+function sevBadge(s){ return `<span class="sev-badge sev-${s}">${s}</span>`; }
+
+function render(R){
+  document.getElementById("src").textContent = "Source: " + R.source;
+  const c = R.by_severity;
+  let html = `<section class="stat-row">
+    <div class="stat card"><div class="stat-label">Changes tested</div><div class="stat-value">${R.total_changes}</div></div>
+    <div class="stat card"><div class="stat-label">Compliant</div><div class="stat-value" style="color:#2db757">${R.compliant_changes}</div><div class="stat-note">${R.compliance_rate}% pass rate</div></div>
+    <div class="stat card"><div class="stat-label">Flagged</div><div class="stat-value" style="color:${R.flagged_changes?'#f95d54':'#2db757'}">${R.flagged_changes}</div><div class="stat-note">${R.exception_count} exceptions</div></div>
+    <div class="stat card"><div class="stat-label">High / Medium</div><div class="stat-value">${c.High} / ${c.Medium}</div></div>
+  </section>`;
+
+  html += `<h2 style="font-size:1.1rem;margin:.5rem 0 1rem;">Change register</h2>
+    <div class="card" style="padding:1rem 1.2rem;overflow-x:auto;">
+    <table class="grid-table"><tr><th>Change</th><th>Developer</th><th>Deployer</th><th>Type</th><th>Approved</th><th>Tested</th><th>Result</th></tr>
+    ${R.results.map(r=>`<tr>
+      <td><code>${r.change_id}</code></td><td>${r.developer}</td><td>${r.deployer}</td><td>${r.type}</td>
+      <td><span class="pill ${r.approved?'pill-pass':'pill-fail'}">${r.approved?'YES':'NO'}</span></td>
+      <td><span class="pill ${r.tested?'pill-pass':'pill-fail'}">${r.tested?'YES':'NO'}</span></td>
+      <td><span class="pill ${r.compliant?'pill-pass':'pill-fail'}">${r.compliant?'PASS':'EXCEPTION'}</span></td>
+    </tr>`).join("")}</table></div>`;
+
+  const flagged = R.results.filter(r=>r.exceptions.length);
+  if(flagged.length){
+    html += `<h2 style="font-size:1.1rem;margin:1.4rem 0 1rem;">Exceptions — documented</h2>`;
+    flagged.forEach(r=>{
+      r.exceptions.forEach(e=>{
+        html += `<div class="card finding" style="--sev:${e.severity==='High'?'#f95d54':'#ffe600'}">
+          <div class="finding-top"><span class="finding-id">${r.change_id}</span>
+            <span class="finding-name">${e.title}</span>${sevBadge(e.severity)}</div>
+          <div class="finding-risk">${e.detail}</div>
+          <div class="finding-meta">Control: ${e.control}</div></div>`;
+      });
+    });
+  }
+  document.getElementById("results").innerHTML = html;
+}
+async function run(fd){ try{ render(await API.postForm("changes", fd)); }catch(e){ if(e.status===401)showLogin(); else alert(e.message); } }
+document.getElementById("sampleBtn").onclick = ()=>run(new FormData());
+fileDrop("zone","fileInput",(f)=>{ const fd=new FormData(); fd.append("file",f); run(fd); });
+loadMe();
+</script>
+</body>
+</html>

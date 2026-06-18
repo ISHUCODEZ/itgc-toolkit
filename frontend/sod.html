@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SoD Analyzer · ITGC Toolkit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div class="shell">
+  <div id="nav"></div>
+  <div class="page-head">
+    <span class="eyebrow">PILLAR 1 · ACCESS MANAGEMENT</span>
+    <h1>Segregation-of-duties analyzer</h1>
+    <p class="subtitle">Upload a user-entitlement export (who holds which roles) and the engine flags every <strong>toxic combination</strong> — pairs of duties that one person should never hold together, like creating a vendor and approving its payment. Each conflict cites the rule, the fraud risk it creates, and the control it breaches.</p>
+  </div>
+
+  <div class="card" style="padding:1.4rem 1.6rem;margin-bottom:1.3rem;">
+    <div class="dropzone" id="zone">
+      <strong>⬆ Drop an entitlements CSV here, or click to browse</strong>
+      <span>Columns: <code>user, role</code> (one row per grant) — or <code>user, roles</code> with a semicolon list. Or just run the bundled sample.</span>
+    </div>
+    <input type="file" id="fileInput" accept=".csv" style="display:none;">
+    <div class="btn-row">
+      <button class="run-btn" id="sampleBtn">▶ Run sample export</button>
+      <button class="run-btn ghost" id="rulesBtn">View conflict ruleset</button>
+    </div>
+    <p id="src" style="color:var(--muted);font-size:.78rem;margin:0;"></p>
+  </div>
+
+  <div id="results"></div>
+  <div id="rulesPanel"></div>
+</div>
+<script src="/static/js/common.js"></script>
+<script>
+document.getElementById("nav").innerHTML = navBar("sod");
+
+function sevBadge(s){ return `<span class="sev-badge sev-${s}">${s}</span>`; }
+
+function render(R){
+  const c = R.by_severity;
+  document.getElementById("src").textContent = "Source: " + R.source;
+  let html = `<section class="stat-row">
+    <div class="stat card"><div class="stat-label">Users analyzed</div><div class="stat-value">${R.total_users}</div><div class="stat-note">${R.total_grants} role grants</div></div>
+    <div class="stat card"><div class="stat-label">Conflicts found</div><div class="stat-value" style="color:${R.conflict_count?'#f95d54':'#2db757'}">${R.conflict_count}</div><div class="stat-note">across ${R.users_with_conflicts} users</div></div>
+    <div class="stat card"><div class="stat-label">High / Medium</div><div class="stat-value">${c.High} / ${c.Medium}</div><div class="stat-note">by severity</div></div>
+    <div class="stat card"><div class="stat-label">Clean users</div><div class="stat-value" style="color:#2db757">${R.clean_users}</div><div class="stat-note">no conflicts</div></div>
+  </section>`;
+
+  if(!R.conflict_count){
+    html += `<div class="card" style="padding:1.4rem 1.6rem;"><strong style="color:#2db757">No SoD conflicts found.</strong> Every user's entitlements are free of the toxic combinations in the ruleset.</div>`;
+  } else {
+    html += `<h2 style="font-size:1.1rem;margin:.5rem 0 1rem;">Conflicts — prioritised</h2>`;
+    html += R.conflicts.map(f=>`
+      <div class="card finding" style="--sev:${f.severity==='High'?'#f95d54':f.severity==='Medium'?'#ffe600':'#2db757'}">
+        <div class="finding-top">
+          <span class="finding-id">${f.rule_id}</span>
+          <span class="finding-name">${f.rule}</span>
+          ${sevBadge(f.severity)}
+        </div>
+        <div class="finding-user">User: ${f.user}</div>
+        <div class="finding-risk">${f.risk}</div>
+        <div class="finding-meta">Conflicting roles: ${f.conflicting_roles.map(r=>`<code>${r}</code>`).join(" + ")} &nbsp;·&nbsp; Control: ${f.control}</div>
+      </div>`).join("");
+  }
+  document.getElementById("results").innerHTML = html;
+}
+
+async function runSample(){
+  try{ const R = await API.postForm("sod", new FormData()); render(R); }
+  catch(e){ if(e.status===401) showLogin(); else alert(e.message); }
+}
+async function runFile(file){
+  const fd = new FormData(); fd.append("file", file);
+  try{ const R = await API.postForm("sod", fd); render(R); }
+  catch(e){ if(e.status===401) showLogin(); else alert(e.message); }
+}
+
+document.getElementById("sampleBtn").onclick = runSample;
+document.getElementById("rulesBtn").onclick = async ()=>{
+  const el = document.getElementById("rulesPanel");
+  if(el.innerHTML){ el.innerHTML=""; return; }
+  const rules = await API.get("sod/rules");
+  el.innerHTML = `<div class="card" style="padding:1.4rem 1.6rem;margin-top:1.3rem;">
+    <h2 style="font-size:1.05rem;margin:0 0 .8rem;">Conflict ruleset (${rules.length} rules)</h2>
+    <table class="grid-table"><tr><th>ID</th><th>Rule</th><th>Severity</th><th>Control</th></tr>
+    ${rules.map(r=>`<tr><td><code>${r.id}</code></td><td>${r.name}</td><td>${sevBadge(r.severity)}</td><td style="color:var(--muted)">${r.control}</td></tr>`).join("")}
+    </table></div>`;
+};
+fileDrop("zone","fileInput",runFile);
+loadMe();
+</script>
+</body>
+</html>

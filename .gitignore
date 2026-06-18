@@ -1,0 +1,9 @@
+venv/
+__pycache__/
+*.pyc
+backend/services/itgc.db
+backend/uploads/*
+!backend/uploads/.gitkeep
+.env
+*.zip
+.DS_Store

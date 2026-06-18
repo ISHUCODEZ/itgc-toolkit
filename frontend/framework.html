@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Framework Map · ITGC Toolkit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div class="shell">
+  <div id="nav"></div>
+  <div class="page-head">
+    <span class="eyebrow">CROSS-CUTTING · CONTROL FRAMEWORKS</span>
+    <h1>Control-framework crosswalk</h1>
+    <p class="subtitle">One control usually satisfies several standards at once. This crosswalk maps each ITGC control area across <strong>SOX ITGC</strong>, <strong>COBIT 2019</strong>, <strong>ISO 27001:2022</strong>, <strong>NIST CSF 2.0</strong> and <strong>SOC 2</strong> — so you can show a single control covers multiple frameworks in one line.</p>
+  </div>
+
+  <div class="card" style="padding:1.2rem 1.4rem;margin-bottom:1.3rem;">
+    <input id="q" placeholder="Search a control (e.g. 'access review', 'change', 'backup', 'privileged')…"
+      style="width:100%;padding:.6rem .8rem;background:var(--panel-soft);border:1px solid var(--border);border-radius:8px;color:var(--ink);font-family:inherit;">
+  </div>
+  <div id="results"></div>
+</div>
+<script src="/static/js/common.js"></script>
+<script>
+document.getElementById("nav").innerHTML = navBar("framework");
+let FW = [];
+function render(data){
+  const cols = FW;
+  document.getElementById("results").innerHTML = `<div class="card" style="padding:1rem 1.2rem;overflow-x:auto;">
+    <table class="grid-table fw-table"><tr><th>Control area</th>${cols.map(c=>`<th>${c[1]}</th>`).join("")}</tr>
+    ${data.map(m=>`<tr><td>${m.area}</td>${cols.map(c=>`<td style="color:var(--muted)">${m[c[0]]}</td>`).join("")}</tr>`).join("")}
+    </table></div>`;
+}
+async function load(q){
+  try{
+    const R = await API.get("framework" + (q?`?q=${encodeURIComponent(q)}`:""));
+    FW = R.frameworks;
+    if(!R.mappings.length){ document.getElementById("results").innerHTML = `<div class="card" style="padding:1.4rem 1.6rem;color:var(--muted)">No control area matches "${q}". Try: access, change, backup, privileged, recertification, monitoring.</div>`; return; }
+    render(R.mappings);
+  }catch(e){ if(e.status===401)showLogin(); else alert(e.message); }
+}
+let t;
+document.getElementById("q").addEventListener("input", e=>{ clearTimeout(t); t=setTimeout(()=>load(e.target.value.trim()),250); });
+loadMe().then(()=>load(""));
+</script>
+</body>
+</html>
