@@ -2,10 +2,11 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "itgc",
-      "runtimeExecutable": "backend/venv/Scripts/python.exe",
+      "name": "ITGC Toolkit",
+      "runtimeExecutable": "python",
       "runtimeArgs": ["backend/app.py"],
-      "port": 5001
+      "port": 5001,
+      "autoPort": true
     }
   ]
 }

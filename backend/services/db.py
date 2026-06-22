@@ -53,7 +53,16 @@ def init():
       ts TEXT, run_id INTEGER, control TEXT, metric TEXT,
       message TEXT, severity TEXT, acknowledged INTEGER DEFAULT 0);
     """)
-    c.commit(); c.close()
+    c.commit()
+    # add sign-off columns to ccm_exceptions if upgrading from an older schema
+    for col, definition in [("reviewed_by", "TEXT DEFAULT ''"),
+                             ("reviewed_ts",  "TEXT DEFAULT NULL")]:
+        try:
+            c.execute(f"ALTER TABLE ccm_exceptions ADD COLUMN {col} {definition}")
+            c.commit()
+        except Exception:
+            pass  # column already exists
+    c.close()
 
 
 def log(username: str, action: str, detail: str = ""):
@@ -63,11 +72,37 @@ def log(username: str, action: str, detail: str = ""):
     c.commit(); c.close()
 
 
-def recent_activity(limit: int = 100):
+def recent_activity(limit: int = 100, user: str = "", action: str = ""):
     c = _conn()
-    rows = c.execute("SELECT * FROM activity ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
+    where, params = [], []
+    if user:
+        where.append("username=?"); params.append(user)
+    if action:
+        where.append("action=?"); params.append(action)
+    q = "SELECT * FROM activity"
+    if where:
+        q += " WHERE " + " AND ".join(where)
+    q += " ORDER BY id DESC LIMIT ?"
+    params.append(limit)
+    rows = c.execute(q, params).fetchall()
     c.close()
     return [dict(r) for r in rows]
+
+
+def activity_users() -> list[str]:
+    """Distinct usernames in the activity log — for the filter dropdown."""
+    c = _conn()
+    rows = c.execute("SELECT DISTINCT username FROM activity ORDER BY username").fetchall()
+    c.close()
+    return [r["username"] for r in rows]
+
+
+def activity_actions() -> list[str]:
+    """Distinct action types in the activity log — for the filter dropdown."""
+    c = _conn()
+    rows = c.execute("SELECT DISTINCT action FROM activity ORDER BY action").fetchall()
+    c.close()
+    return [r["action"] for r in rows]
 
 
 def save_run(username: str, module: str, summary: dict):

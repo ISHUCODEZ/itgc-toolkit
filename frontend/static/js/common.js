@@ -69,8 +69,8 @@ function showLogin() {
 }
 
 function navBar(active) {
-  const items = [["", "Home"], ["ccm", "CCM Monitor"], ["sod", "Access · SoD"], ["change", "Change Mgmt"],
-    ["recert", "Recertification"], ["framework", "Framework Map"], ["governance", "Audit Trail"]];
+  const items = [["", "Home"], ["ccm", "CCM Monitor"], ["sod", "Access · SoD"], ["jml", "Access · JML"],
+    ["change", "Change Mgmt"], ["recert", "Recertification"], ["framework", "Framework Map"], ["governance", "Audit Trail"]];
   return `<header class="topbar card">
     <div class="brand"><span class="brand-name">ITGC Controls Toolkit</span>
       <span class="brand-tag">Technology Risk · ITGC</span></div>

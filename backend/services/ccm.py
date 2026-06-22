@@ -443,6 +443,73 @@ def exceptions_list(status: str | None = None, control: str | None = None) -> li
     return out
 
 
+def pillar_scores() -> dict:
+    """
+    Per-pillar health scores (0-100) derived from the latest run metrics and
+    open exception counts. Displayed as individual control-area scorecards on
+    the CCM dashboard and home page — more actionable than a single blended number.
+    """
+    k = kpis()
+    m = k.get("latest_metrics", {})
+
+    c = db.connect()
+    rows = c.execute("""SELECT control, severity, COUNT(*) n FROM ccm_exceptions
+                        WHERE status IN ('open','acknowledged')
+                        GROUP BY control, severity""").fetchall()
+    c.close()
+
+    exc: dict[str, dict] = {}
+    for r in rows:
+        exc.setdefault(r["control"], {})
+        exc[r["control"]][r["severity"]] = r["n"]
+
+    def _band(s):
+        if s >= 85: return "strong"
+        if s >= 70: return "moderate"
+        if s >= 50: return "weak"
+        return "critical"
+
+    # SoD score: deduct per open exception
+    sod_high = exc.get("SoD", {}).get("High", 0)
+    sod_med  = exc.get("SoD", {}).get("Medium", 0)
+    sod_score = max(0, round(100 - sod_high * 10 - sod_med * 3))
+
+    # Change score: use compliance rate directly from last run
+    change_comp = m.get("change", {}).get("compliance_rate", 100)
+    change_score = int(change_comp) if change_comp is not None else 100
+
+    # Recert score: current_rate from last run
+    recert_rate = m.get("recert", {}).get("current_rate", 100)
+    recert_score = int(recert_rate) if recert_rate is not None else 100
+
+    return {
+        "SoD":    {"score": sod_score,    "band": _band(sod_score),
+                   "open_high": sod_high, "open_medium": sod_med,
+                   "label": "Access · SoD"},
+        "Change": {"score": change_score, "band": _band(change_score),
+                   "compliance_rate": change_comp,
+                   "label": "Change Management"},
+        "Recert": {"score": recert_score, "band": _band(recert_score),
+                   "current_rate": recert_rate,
+                   "label": "Recertification"},
+    }
+
+
+def review_exception(fp: str, reviewed_by: str) -> dict | None:
+    """Stamp a reviewer signature + timestamp on a finding — the in-app sign-off."""
+    c = db.connect()
+    row = c.execute("SELECT fingerprint FROM ccm_exceptions WHERE fingerprint=?", (fp,)).fetchone()
+    if not row:
+        c.close(); return None
+    ts = time.strftime(TS_FMT)
+    c.execute("UPDATE ccm_exceptions SET reviewed_by=?, reviewed_ts=? WHERE fingerprint=?",
+              (reviewed_by, ts, fp))
+    c.commit()
+    updated = dict(c.execute("SELECT * FROM ccm_exceptions WHERE fingerprint=?", (fp,)).fetchone())
+    c.close()
+    return updated
+
+
 def update_exception(fp: str, status: str | None = None,
                      owner: str | None = None, note: str | None = None) -> dict | None:
     valid = {"open", "acknowledged", "remediated", "risk-accepted", "resolved"}

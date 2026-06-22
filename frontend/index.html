@@ -6,6 +6,32 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/css/style.css">
+<style>
+  .live-banner { display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:.8rem; margin-bottom:1.4rem; }
+  @media (max-width:860px){ .live-banner { grid-template-columns:1fr 1fr; } }
+  @media (max-width:500px){ .live-banner { grid-template-columns:1fr; } }
+  .live-tile { background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:1.1rem 1.3rem; position:relative; overflow:hidden; }
+  .live-tile::before { content:''; position:absolute; top:0; left:0; width:4px; height:100%; background:var(--tile-color,var(--border)); }
+  .live-label { font-family:'IBM Plex Mono',monospace; font-size:.6rem; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin-bottom:.4rem; }
+  .live-value { font-family:'IBM Plex Mono',monospace; font-size:2rem; font-weight:600; line-height:1; }
+  .live-sub   { font-size:.74rem; color:var(--muted); margin-top:.35rem; line-height:1.4; }
+  .opinion-strip { display:flex; align-items:center; gap:1rem; background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:1rem 1.4rem; margin-bottom:1.4rem; }
+  .op-score-big { font-family:'IBM Plex Mono',monospace; font-size:2.4rem; font-weight:700; line-height:1; }
+  .op-bar-wrap { flex:1; }
+  .op-bar-track { height:6px; background:var(--panel-soft); border-radius:3px; overflow:hidden; margin:.3rem 0; }
+  .op-bar-fill  { height:100%; border-radius:3px; transition:width .9s ease; }
+  .op-band-label { font-family:'Fraunces',serif; font-size:1.1rem; font-weight:600; }
+  .op-verdict-small { font-size:.78rem; color:var(--muted); }
+  .pillar-scores { display:grid; grid-template-columns:repeat(3,1fr); gap:.8rem; margin-bottom:1.4rem; }
+  @media (max-width:640px){ .pillar-scores { grid-template-columns:1fr; } }
+  .pscore-card { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:.9rem 1.1rem; }
+  .pscore-label { font-family:'IBM Plex Mono',monospace; font-size:.6rem; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:.4rem; }
+  .pscore-num { font-family:'IBM Plex Mono',monospace; font-size:1.6rem; font-weight:600; }
+  .pscore-track { height:5px; background:var(--panel-soft); border-radius:3px; overflow:hidden; margin:.4rem 0 .3rem; }
+  .pscore-fill  { height:100%; border-radius:3px; }
+  .pscore-note  { font-size:.72rem; color:var(--muted); }
+  .no-history-strip { background:var(--panel); border:1px solid var(--border); border-left:4px solid var(--yellow); border-radius:0 12px 12px 0; padding:.9rem 1.2rem; margin-bottom:1.4rem; font-size:.85rem; }
+</style>
 </head>
 <body>
 <div class="shell">
@@ -13,15 +39,23 @@
 
   <div class="page-head">
     <span class="eyebrow">IT GENERAL CONTROLS · TESTING TOOLKIT</span>
-    <h1>Test the four pillars of ITGC — with evidence.</h1>
-    <p class="subtitle">A working toolkit for the controls a Technology Risk team tests every engagement: <strong>access management</strong>, <strong>change management</strong>, <strong>computer operations</strong>, and the <strong>control frameworks</strong> that tie them together. Upload a real export — entitlements, change tickets, access reviews — and each tool runs the test an auditor would and writes the exceptions as documented findings.</p>
+    <h1>Control health, right now.</h1>
+    <p class="subtitle">Live monitoring across all four ITGC pillars — <strong>access management</strong>, <strong>change management</strong>, <strong>operations & monitoring</strong>, and <strong>JML access revocation</strong>. Each tool runs the test an auditor would, writes exceptions as documented findings, and feeds the continuous monitoring layer that trends control health over time.</p>
   </div>
+
+  <!-- live CCM tiles -->
+  <div id="liveDash"></div>
 
   <section class="pillar-grid">
     <a class="pillar-card card" href="/sod">
-      <div class="pillar-kicker">PILLAR 1 · ACCESS</div>
+      <div class="pillar-kicker">PILLAR 1 · ACCESS · SOD</div>
       <div class="pillar-title">SoD Analyzer</div>
       <div class="pillar-desc">Upload a user-entitlement export. Flags toxic role combinations — e.g. create-vendor + approve-payment — against an explicit conflict ruleset.</div>
+    </a>
+    <a class="pillar-card card" href="/jml">
+      <div class="pillar-kicker">PILLAR 1 · ACCESS · JML</div>
+      <div class="pillar-title">JML Access Review</div>
+      <div class="pillar-desc">Cross-references terminated employees against the live entitlements population. Every active role held by a former employee is a documented finding.</div>
     </a>
     <a class="pillar-card card" href="/change">
       <div class="pillar-kicker">PILLAR 2 · CHANGE</div>
@@ -33,6 +67,11 @@
       <div class="pillar-title">Recertification</div>
       <div class="pillar-desc">Tracks the periodic access-review cycle — shows which grants are current, due soon, overdue, or never reviewed.</div>
     </a>
+    <a class="pillar-card card" href="/ccm">
+      <div class="pillar-kicker">MONITORING LAYER</div>
+      <div class="pillar-title">CCM Monitor</div>
+      <div class="pillar-desc">Trend control health over time. Each run is a timestamped snapshot; findings carry stable fingerprints for aging, delta detection, and MTTR.</div>
+    </a>
     <a class="pillar-card card" href="/framework">
       <div class="pillar-kicker">CROSS-CUTTING</div>
       <div class="pillar-title">Framework Map</div>
@@ -43,17 +82,111 @@
   <div class="card" style="padding:1.4rem 1.6rem;">
     <h2 style="margin:0 0 .6rem;font-size:1.05rem;">What this demonstrates</h2>
     <p style="color:var(--muted);font-size:.88rem;line-height:1.6;margin:0;">
-      The three core ITGC domains — <strong style="color:var(--ink)">access management</strong> (who can do what, and is it still appropriate), <strong style="color:var(--ink)">change management</strong> (did changes reach production under control), and <strong style="color:var(--ink)">operations &amp; monitoring</strong> (is access re-reviewed on cadence) — plus the <strong style="color:var(--ink)">framework crosswalk</strong> auditors use to map a single control across standards. Every tool is deterministic and rule-based: each finding traces to a named rule with a risk rationale and a control reference, exactly how a real audit exception is documented. The toolkit also practises the controls it tests — role-based access and a full activity audit trail.</p>
+      The four ITGC access controls — <strong style="color:var(--ink)">SoD</strong> (who holds toxic combinations), <strong style="color:var(--ink)">JML</strong> (terminated users still holding access), <strong style="color:var(--ink)">change management</strong> (changes reaching production under control), and <strong style="color:var(--ink)">recertification</strong> (access re-reviewed on cadence) — plus continuous monitoring and the framework crosswalk. Every finding traces to a named rule with a risk rationale and a control reference, exactly how a real audit exception is documented. The toolkit also practises the controls it tests: role-based access, a full activity audit trail, and exception sign-off workflow.</p>
   </div>
 
   <footer class="footer card" style="margin-top:1.5rem;">
-    <strong>For the demo.</strong> Each tool ships with a realistic sample export so you can run it instantly, or upload your own CSV. Start with the SoD Analyzer — it produces the clearest findings and is the control auditors test most.
+    <strong>For the demo.</strong> Each tool ships with a realistic sample export so you can run it instantly, or upload your own CSV. The live scorecard above is drawn from CCM monitoring history — run <code>python backfill.py</code> in the backend folder to seed 12 weeks of history, then click <strong>CCM Monitor → Run now</strong> to add a live snapshot.
   </footer>
 </div>
 <script src="/static/js/common.js"></script>
 <script>
 document.getElementById("nav").innerHTML = navBar("");
-loadMe();
+
+const COL = { green:"#2db757", yellow:"#ffe600", orange:"#ff9d3c", red:"#f95d54", muted:"#9a9aa6" };
+
+function bandColor(band){
+  return { RELIANCE:"#2db757", RELIANCE_EXC:"#ffe600", LIMITED:"#ff9d3c", NO_RELIANCE:"#f95d54" }[band] || COL.muted;
+}
+function pscoreColor(band){
+  return { strong:"#2db757", moderate:"#ffe600", weak:"#ff9d3c", critical:"#f95d54" }[band] || COL.muted;
+}
+
+function renderLiveDash(d){
+  const el = document.getElementById("liveDash");
+  if(!d.has_history){
+    el.innerHTML = `<div class="no-history-strip">
+      <strong>No monitoring history yet.</strong> Run <code>python backfill.py</code> in the <code>backend/</code> folder then click
+      <a href="/ccm" style="color:var(--yellow)">CCM Monitor → Run now</a> to populate the live scorecard above.
+    </div>`;
+    return;
+  }
+
+  const op = d.opinion;
+  const k  = d.kpis;
+  const ps = d.pillar_scores;
+  const opColor = bandColor(op.band);
+
+  // opinion strip
+  const opHtml = `<div class="opinion-strip" style="border-left-color:${opColor};border-left-width:5px;border-left-style:solid;border-radius:0 14px 14px 0;">
+    <div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:.2rem">Controls reliance</div>
+      <div class="op-score-big" style="color:${opColor}">${op.score}<span style="font-size:.5em;color:var(--muted)">/100</span></div>
+    </div>
+    <div class="op-bar-wrap">
+      <div class="op-band-label" style="color:${opColor}">${op.band_label}</div>
+      <div class="op-bar-track"><div class="op-bar-fill" style="width:${op.score}%;background:${opColor}"></div></div>
+      <div class="op-verdict-small">${op.verdict}</div>
+    </div>
+    <a href="/ccm" class="run-btn ghost" style="white-space:nowrap;font-size:.78rem;padding:.5rem 1rem">View CCM Monitor →</a>
+  </div>`;
+
+  // 4 live KPI tiles
+  const delta = k.latest_delta || {};
+  const tilesHtml = `<div class="live-banner">
+    <div class="live-tile" style="--tile-color:${k.open_exceptions > 5 ? COL.red : k.open_exceptions > 0 ? COL.orange : COL.green}">
+      <div class="live-label">Open exceptions</div>
+      <div class="live-value" style="color:${k.open_exceptions > 5 ? COL.red : k.open_exceptions > 0 ? COL.orange : COL.green}">${k.open_exceptions}</div>
+      <div class="live-sub">${k.open_by_severity.High} high · ${k.open_by_severity.Medium} med</div>
+    </div>
+    <div class="live-tile" style="--tile-color:${COL.muted}">
+      <div class="live-label">Last run delta</div>
+      <div class="live-value"><span style="color:${COL.red}">+${delta.new??0}</span> <span style="font-size:.8em;color:var(--muted)">/</span> <span style="color:${COL.green}">−${delta.resolved??0}</span></div>
+      <div class="live-sub">${delta.persisting??0} persisting</div>
+    </div>
+    <div class="live-tile" style="--tile-color:${COL.green}">
+      <div class="live-label">Mean time to remediate</div>
+      <div class="live-value" style="color:${COL.green}">${k.mttr_days ?? "—"}</div>
+      <div class="live-sub">${k.mttr_days != null ? "days average" : "no remediations yet"}</div>
+    </div>
+    <div class="live-tile" style="--tile-color:${COL.muted}">
+      <div class="live-label">Monitoring runs</div>
+      <div class="live-value">${k.total_runs}</div>
+      <div class="live-sub">${k.last_run ? "latest " + k.last_run.slice(0,10) : "—"}</div>
+    </div>
+  </div>`;
+
+  // per-pillar scores
+  const pillarsHtml = `<div class="pillar-scores">
+    ${Object.entries(ps).map(([ctrl, p]) => {
+      const c = pscoreColor(p.band);
+      const note = ctrl === 'SoD'
+        ? `${p.open_high} open high · ${p.open_medium} open med`
+        : ctrl === 'Change'
+        ? `${p.compliance_rate}% change compliance`
+        : `${p.current_rate}% grants in cadence`;
+      return `<div class="pscore-card" style="border-top:3px solid ${c}">
+        <div class="pscore-label">${p.label}</div>
+        <div class="pscore-num" style="color:${c}">${p.score}<span style="font-size:.5em;color:var(--muted)">/100</span></div>
+        <div class="pscore-track"><div class="pscore-fill" style="width:${p.score}%;background:${c}"></div></div>
+        <div class="pscore-note">${note}</div>
+      </div>`;
+    }).join("")}
+  </div>`;
+
+  el.innerHTML = opHtml + tilesHtml + pillarsHtml;
+}
+
+async function load(){
+  try{
+    const d = await API.get("dashboard");
+    renderLiveDash(d);
+  } catch(e){
+    if(e.status === 401) showLogin();
+  }
+}
+
+loadMe().then(load);
 </script>
 </body>
 </html>

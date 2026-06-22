@@ -17,7 +17,7 @@ from flask import (Flask, jsonify, request, session, send_from_directory,
                    send_file, Response)
 from flask_cors import CORS
 
-from services import sod, change_audit, recert, framework_map, db, ccm, reporting
+from services import sod, change_audit, recert, framework_map, db, ccm, reporting, jml
 
 FRONTEND = os.path.join(os.path.dirname(__file__), "..", "frontend")
 app = Flask(__name__, static_folder=None)
@@ -137,6 +137,44 @@ def api_recert():
     return jsonify(result)
 
 
+# ---------- JML: Terminated User Access ----------
+@app.post("/api/jml")
+@require_role("viewer")
+def api_jml():
+    term_f = request.files.get("terminated")
+    ent_f  = request.files.get("entitlements")
+
+    if term_f and term_f.filename:
+        term_rows = list(csv.DictReader(io.StringIO(
+            term_f.read().decode("utf-8-sig", errors="replace"))))
+        term_src = term_f.filename
+    else:
+        path = os.path.join(os.path.dirname(__file__), "data", "sample_terminated.csv")
+        with open(path, encoding="utf-8") as fh:
+            term_rows = list(csv.DictReader(fh))
+        term_src = "sample_terminated.csv (sample)"
+
+    if ent_f and ent_f.filename:
+        ent_rows = list(csv.DictReader(io.StringIO(
+            ent_f.read().decode("utf-8-sig", errors="replace"))))
+        ent_src = ent_f.filename
+    else:
+        path = os.path.join(os.path.dirname(__file__), "data", "sample_entitlements.csv")
+        with open(path, encoding="utf-8") as fh:
+            ent_rows = list(csv.DictReader(fh))
+        ent_src = "sample_entitlements.csv (sample)"
+
+    result = jml.analyse(term_rows, ent_rows)
+    result["term_source"] = term_src
+    result["ent_source"] = ent_src
+    user = current_user()["username"]
+    db.log(user, "jml_review",
+           f"{term_src}: {result['users_with_active_access']} users with orphaned access")
+    db.save_run(user, "JML", {"affected": result["users_with_active_access"],
+                               "findings": result["finding_count"]})
+    return jsonify(result)
+
+
 # ---------- Framework mapping ----------
 @app.get("/api/framework")
 @require_role("viewer")
@@ -150,7 +188,31 @@ def api_framework():
 @app.get("/api/activity")
 @require_role("viewer")
 def api_activity():
-    return jsonify(db.recent_activity())
+    user_f   = request.args.get("user", "")
+    action_f = request.args.get("action", "")
+    return jsonify(db.recent_activity(limit=200, user=user_f, action=action_f))
+
+
+@app.get("/api/activity/filters")
+@require_role("viewer")
+def api_activity_filters():
+    return jsonify({"users": db.activity_users(), "actions": db.activity_actions()})
+
+
+@app.get("/api/activity/export")
+@require_role("viewer")
+def api_activity_export():
+    user_f   = request.args.get("user", "")
+    action_f = request.args.get("action", "")
+    rows = db.recent_activity(limit=5000, user=user_f, action=action_f)
+    buf = io.StringIO()
+    w = csv.DictWriter(buf, fieldnames=["id", "ts", "username", "action", "detail"])
+    w.writeheader(); w.writerows(rows)
+    db.log(current_user()["username"], "activity_export",
+           f"filter user={user_f or '*'} action={action_f or '*'} rows={len(rows)}")
+    return Response(buf.getvalue(), mimetype="text/csv",
+                    headers={"Content-Disposition":
+                             f"attachment; filename=ITGC_AuditTrail_{time.strftime('%Y%m%d')}.csv"})
 
 
 # ---------- Continuous Controls Monitoring (CCM) ----------
@@ -243,6 +305,36 @@ def api_ccm_opinion():
     return jsonify(ccm.reliance_opinion())
 
 
+@app.get("/api/ccm/pillar-scores")
+@require_role("viewer")
+def api_ccm_pillar_scores():
+    return jsonify(ccm.pillar_scores())
+
+
+@app.post("/api/ccm/exceptions/<fingerprint>/review")
+@require_role("auditor")
+def api_ccm_review_exception(fingerprint):
+    user = current_user()["username"]
+    updated = ccm.review_exception(fingerprint, reviewed_by=user)
+    if not updated:
+        return jsonify({"error": "exception not found"}), 404
+    db.log(user, "ccm_exception_review", f"{fingerprint[:8]} reviewed by {user}")
+    return jsonify(updated)
+
+
+# ---------- home dashboard ----------
+@app.get("/api/dashboard")
+@require_role("viewer")
+def api_dashboard():
+    has = ccm.has_history()
+    result = {"has_history": has}
+    if has:
+        result["opinion"] = ccm.reliance_opinion()
+        result["kpis"]    = ccm.kpis()
+        result["pillar_scores"] = ccm.pillar_scores()
+    return jsonify(result)
+
+
 # ---------- audit deliverables (Excel workpaper / PDF report) ----------
 @app.get("/api/report/xlsx")
 @require_role("viewer")
@@ -313,4 +405,5 @@ if __name__ == "__main__":
     # only start the scheduler in the main reloader process, not the watcher
     if os.environ.get("WERKZEUG_RUN_MAIN") != "false":
         _start_scheduler()
-    app.run(host="0.0.0.0", port=5001, debug=True)
+    port = int(os.environ.get("PORT", 5001))
+    app.run(host="0.0.0.0", port=port, debug=True)

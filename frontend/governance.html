@@ -6,6 +6,15 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/css/style.css">
+<style>
+  .filter-bar { display:flex; gap:.6rem; flex-wrap:wrap; align-items:center; margin-bottom:1rem; }
+  .filter-bar select { background:var(--panel-soft); border:1px solid var(--border); border-radius:8px; color:var(--ink); padding:.42rem .6rem; font:500 .8rem 'IBM Plex Sans',sans-serif; min-width:140px; }
+  .filter-bar select:focus { outline:none; border-color:var(--yellow); }
+  .export-btn { display:inline-flex; align-items:center; gap:.35rem; font-family:'IBM Plex Mono',monospace; font-size:.74rem; letter-spacing:.04em; padding:.45rem .85rem; border-radius:9px; border:1px solid var(--border); background:var(--panel-soft); color:var(--muted); cursor:pointer; text-decoration:none; margin-left:auto; }
+  .export-btn:hover { border-color:var(--teal); color:var(--teal); }
+  .action-pill { font-family:'IBM Plex Mono',monospace; font-size:.68rem; padding:.15rem .4rem; border-radius:4px; background:var(--panel-soft); border:1px solid var(--border); color:var(--muted); }
+  tr:hover .action-pill { border-color:var(--yellow); color:var(--ink); }
+</style>
 </head>
 <body>
 <div class="shell">
@@ -13,11 +22,26 @@
   <div class="page-head">
     <span class="eyebrow">GOVERNANCE · THE TOOLKIT PRACTISES WHAT IT TESTS</span>
     <h1>Activity audit trail</h1>
-    <p class="subtitle">Every login, every analysis run, every export is logged here — the same logging &amp; monitoring control the toolkit tests in your systems. Access is role-based: <strong>viewer</strong> reads, <strong>auditor</strong> runs analyses, <strong>admin</strong> has full control. Enforced server-side on every endpoint.</p>
+    <p class="subtitle">Every login, every analysis run, every export, every sign-off is logged here — the same logging &amp; monitoring control the toolkit tests in your systems. Filter by user or action type, or export the full log as CSV evidence.</p>
   </div>
 
   <div class="card" style="padding:1.1rem 1.4rem;">
-    <h2 style="font-size:1.05rem;margin:0 0 .8rem;">Activity log <span id="count" class="role-tag" style="background:var(--panel-soft);color:var(--muted)">—</span></h2>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:.8rem;">
+      <h2 style="font-size:1.05rem;margin:0;">Activity log <span id="count" class="role-tag" style="background:var(--panel-soft);color:var(--muted)">—</span></h2>
+    </div>
+
+    <div class="filter-bar">
+      <select id="fUser" onchange="load()">
+        <option value="">All users</option>
+      </select>
+      <select id="fAction" onchange="load()">
+        <option value="">All actions</option>
+      </select>
+      <button class="export-btn" onclick="exportCsv()">
+        <span style="font-weight:700;color:var(--teal)">CSV</span> Export log
+      </button>
+    </div>
+
     <div style="max-height:520px;overflow-y:auto;">
       <table class="grid-table"><tr><th>Time</th><th>User</th><th>Action</th><th>Detail</th></tr>
         <tbody id="log"></tbody></table>
@@ -29,23 +53,61 @@
     <p style="color:var(--muted);font-size:.86rem;line-height:1.6;margin:0;">
       <strong style="color:var(--ink)">Access management</strong> — role-based logins enforced server-side; a viewer cannot run an admin action.
       <strong style="color:var(--ink)">Change management</strong> — analyses are deliberate, attributed actions, never silent.
-      <strong style="color:var(--ink)">Logging &amp; monitoring</strong> — this trail records every action with a timestamp and the user who performed it.</p>
+      <strong style="color:var(--ink)">Logging &amp; monitoring</strong> — this trail records every action with a timestamp and the user who performed it, is filterable, and is exportable as CSV evidence for an auditor.</p>
   </div>
 </div>
 <script src="/static/js/common.js"></script>
 <script>
 document.getElementById("nav").innerHTML = navBar("governance");
-async function load(){
+
+const ACTION_COLORS = {
+  login: "#2db757", logout: "#9a9aa6",
+  ccm_run: "#188ce5", ccm_exception_update: "#ffe600", ccm_exception_review: "#2db757",
+  ccm_alert_ack: "#ff9d3c", ccm_threshold_add: "#ff9d3c", ccm_threshold_delete: "#f95d54",
+  report_export: "#ffe600", activity_export: "#ffe600",
+  sod_analysis: "#f95d54", change_audit: "#ff9d3c", recert_review: "#188ce5",
+  jml_review: "#f95d54",
+};
+
+function actionColor(a){ return ACTION_COLORS[a] || "#9a9aa6"; }
+
+async function loadFilters(){
   try{
-    const rows = await API.get("activity");
+    const f = await API.get("activity/filters");
+    const uSel = document.getElementById("fUser");
+    const aSel = document.getElementById("fAction");
+    f.users.forEach(u => { const o = document.createElement("option"); o.value = u; o.textContent = u; uSel.appendChild(o); });
+    f.actions.forEach(a => { const o = document.createElement("option"); o.value = a; o.textContent = a.replace(/_/g," "); aSel.appendChild(o); });
+  }catch{}
+}
+
+async function load(){
+  const u = document.getElementById("fUser").value;
+  const a = document.getElementById("fAction").value;
+  const params = new URLSearchParams();
+  if(u) params.set("user", u);
+  if(a) params.set("action", a);
+  try{
+    const rows = await API.get("activity" + (params.toString() ? "?" + params : ""));
     document.getElementById("count").textContent = rows.length + " events";
     document.getElementById("log").innerHTML = rows.map(r=>`<tr>
-      <td style="color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:.74rem;">${r.ts}</td>
-      <td><code>${r.username}</code></td><td><strong>${r.action.replace(/_/g,' ')}</strong></td>
-      <td style="color:var(--muted)">${r.detail||''}</td></tr>`).join("");
-  }catch(e){ if(e.status===401)showLogin(); }
+      <td style="color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:.74rem;white-space:nowrap">${r.ts}</td>
+      <td><code>${r.username}</code></td>
+      <td><span class="action-pill" style="border-color:${actionColor(r.action)}20;color:${actionColor(r.action)}">${r.action.replace(/_/g," ")}</span></td>
+      <td style="color:var(--muted);font-size:.82rem">${r.detail||""}</td></tr>`).join("");
+  }catch(e){ if(e.status===401) showLogin(); }
 }
-loadMe().then(load);
+
+function exportCsv(){
+  const u = document.getElementById("fUser").value;
+  const a = document.getElementById("fAction").value;
+  const params = new URLSearchParams();
+  if(u) params.set("user", u);
+  if(a) params.set("action", a);
+  window.location.href = "/api/activity/export" + (params.toString() ? "?" + params : "");
+}
+
+loadMe().then(async ()=>{ await loadFilters(); load(); });
 </script>
 </body>
 </html>

@@ -49,6 +49,17 @@
   .report-btn { display:inline-flex; align-items:center; gap:.4rem; font-family:'IBM Plex Mono',monospace; font-size:.74rem; letter-spacing:.04em; padding:.5rem .9rem; border-radius:9px; border:1px solid var(--border); background:var(--panel-soft); color:var(--ink); cursor:pointer; text-decoration:none; }
   .report-btn:hover { border-color:var(--yellow); color:var(--yellow); }
   .report-btn .glyph { font-weight:700; }
+  .pscore-row { display:grid; grid-template-columns:repeat(3,1fr); gap:.8rem; margin-bottom:1.3rem; }
+  @media (max-width:640px){ .pscore-row { grid-template-columns:1fr; } }
+  .pscore-card { background:var(--panel-soft); border:1px solid var(--border); border-radius:12px; padding:.9rem 1.1rem; border-top:3px solid var(--pc,var(--border)); }
+  .pscore-label { font-family:'IBM Plex Mono',monospace; font-size:.6rem; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:.35rem; }
+  .pscore-val { font-family:'IBM Plex Mono',monospace; font-size:1.55rem; font-weight:600; line-height:1; }
+  .pscore-track { height:5px; background:var(--panel); border-radius:3px; overflow:hidden; margin:.35rem 0 .3rem; }
+  .pscore-fill  { height:100%; border-radius:3px; }
+  .pscore-note  { font-size:.72rem; color:var(--muted); }
+  .review-btn { background:transparent; border:1px solid var(--border); color:var(--muted); border-radius:7px; padding:.3rem .5rem; cursor:pointer; font-size:.68rem; font-family:'IBM Plex Mono',monospace; }
+  .review-btn:hover { border-color:var(--teal); color:var(--teal); }
+  .review-btn.done { color:var(--teal); border-color:var(--teal); }
   #toastWrap { position:fixed; top:1rem; left:50%; transform:translateX(-50%); z-index:200; display:flex; flex-direction:column; gap:.5rem; align-items:center; pointer-events:none; }
   .toast { pointer-events:auto; background:var(--panel); border:1px solid var(--border); border-left:4px solid var(--teal); border-radius:10px; box-shadow:var(--shadow); padding:.7rem 1.1rem; font-size:.85rem; color:var(--ink); max-width:90vw; animation:toastIn .25s ease; }
   .toast.warn { border-left-color:var(--salmon); }
@@ -75,6 +86,9 @@
   <div id="alertBanner"></div>
   <div id="emptyState"></div>
   <div id="opinionCard"></div>
+
+  <!-- per-pillar scores -->
+  <div id="pillarScores"></div>
 
   <!-- KPI scorecard -->
   <section class="kpi-grid" id="kpis"></section>
@@ -114,7 +128,7 @@
         <thead><tr>
           <th>Control</th><th style="min-width:230px;">Finding</th><th>Severity</th>
           <th>Age</th><th>Status</th><th style="min-width:120px;">Owner</th>
-          <th style="min-width:160px;">Note</th><th></th>
+          <th style="min-width:160px;">Note</th><th>Review</th><th></th>
         </tr></thead>
         <tbody id="excBody"></tbody>
       </table>
@@ -223,6 +237,31 @@ function renderKpis(k){
       k.last_run? "last: "+k.last_run.slice(0,16) : "no runs yet");
 }
 
+function pscoreColor(band){
+  return { strong:"#2db757", moderate:"#ffe600", weak:"#ff9d3c", critical:"#f95d54" }[band] || COL.muted;
+}
+
+function renderPillarScores(ps){
+  const el = document.getElementById("pillarScores");
+  if(!ps){ el.innerHTML = ""; return; }
+  el.innerHTML = `<div class="pscore-row">
+    ${Object.entries(ps).map(([ctrl, p]) => {
+      const c = pscoreColor(p.band);
+      const note = ctrl === "SoD"
+        ? `${p.open_high} open high · ${p.open_medium} open med`
+        : ctrl === "Change"
+        ? `${p.compliance_rate}% compliance`
+        : `${p.current_rate}% in cadence`;
+      return `<div class="pscore-card" style="--pc:${c}">
+        <div class="pscore-label">${p.label}</div>
+        <div class="pscore-val" style="color:${c}">${p.score}<span style="font-size:.45em;color:var(--muted)">/100</span></div>
+        <div class="pscore-track"><div class="pscore-fill" style="width:${p.score}%;background:${c}"></div></div>
+        <div class="pscore-note">${note}</div>
+      </div>`;
+    }).join("")}
+  </div>`;
+}
+
 function renderOpinion(op){
   const el = document.getElementById("opinionCard");
   if(!op){ el.innerHTML = ""; return; }
@@ -313,8 +352,24 @@ function renderExceptions(rows){
         ${STATUSES.map(s=>`<option ${r.status===s?"selected":""}>${s}</option>`).join("")}</select></td>
       <td><input class="f-owner" value="${r.owner||""}" placeholder="—" ${canEdit?"":"disabled"}></td>
       <td><input class="f-note" value="${(r.note||"").replace(/"/g,'&quot;')}" placeholder="remediation note" ${canEdit?"":"disabled"}></td>
+      <td>${canEdit
+        ? (r.reviewed_by
+            ? `<span style="font-size:.65rem;color:var(--teal);font-family:'IBM Plex Mono',monospace">✓ ${r.reviewed_by}<br><span style="color:var(--muted)">${(r.reviewed_ts||"").slice(0,10)}</span></span>`
+            : `<button class="review-btn" onclick="reviewExc(this)">sign off</button>`)
+        : ""}</td>
       <td>${canEdit?`<button class="save-x" onclick="saveExc(this)">save</button>`:""}</td>
     </tr>`).join("");
+}
+
+async function reviewExc(btn){
+  const tr = btn.closest("tr");
+  const fp = tr.dataset.fp;
+  try{
+    const updated = await API.post(`ccm/exceptions/${fp}/review`);
+    btn.textContent = `✓ ${updated.reviewed_by}`;
+    btn.classList.add("done"); btn.disabled = true;
+    toast(`Finding <b>${fp.slice(0,8)}</b> signed off as reviewed`, "ok");
+  }catch(e){ toast(e.message, "warn"); }
 }
 
 async function saveExc(btn){
@@ -395,6 +450,11 @@ async function loadDashboard(){
   renderKpis(d.kpis);
   renderCharts(d.trend);
   renderAlerts(d.alerts);
+  // per-pillar scores (separate call so dashboard stays fast)
+  try{
+    const ps = await API.get("ccm/pillar-scores");
+    renderPillarScores(d.has_history ? ps : null);
+  }catch{ renderPillarScores(null); }
   const last = d.kpis.last_run;
   document.getElementById("runMeta").textContent = last?
     `${d.kpis.total_runs} runs stored · latest ${last} · monitoring SoD, Change & Recertification controls` : "";

@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JML Review · ITGC Toolkit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/style.css">
+<style>
+  .jml-uploads { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem; }
+  @media (max-width:640px){ .jml-uploads { grid-template-columns:1fr; } }
+  .upload-zone { border:1px dashed var(--border); border-radius:10px; padding:1rem 1.2rem; text-align:center; cursor:pointer; font-size:.85rem; color:var(--muted); transition:border-color .2s; }
+  .upload-zone:hover, .upload-zone.drag { border-color:var(--yellow); color:var(--ink); }
+  .upload-zone strong { display:block; color:var(--ink); margin-bottom:.3rem; }
+  .upload-zone code { font-size:.72rem; }
+  .upload-zone.filled { border-color:var(--teal); color:var(--teal); }
+  .jml-finding { border-left:4px solid var(--sev); background:rgba(255,255,255,.02); border-radius:0 10px 10px 0; padding:1rem 1.2rem; margin-bottom:.7rem; }
+  .jml-user { font-family:'IBM Plex Mono',monospace; font-size:.82rem; color:var(--yellow); font-weight:600; margin-bottom:.25rem; }
+  .jml-meta { font-size:.74rem; color:var(--muted); margin-bottom:.4rem; }
+  .jml-role { font-family:'IBM Plex Mono',monospace; font-size:.78rem; background:var(--panel-soft); border:1px solid var(--border); padding:.2rem .5rem; border-radius:5px; margin-right:.3rem; }
+  .jml-risk { font-size:.82rem; margin:.4rem 0 .2rem; }
+  .jml-ctrl { font-size:.72rem; color:var(--muted); }
+  .days-chip { font-family:'IBM Plex Mono',monospace; font-size:.7rem; padding:.15rem .4rem; border-radius:5px; }
+  .days-high   { background:rgba(249,93,84,.18); color:#f95d54; }
+  .days-medium { background:rgba(255,157,60,.18); color:#ff9d3c; }
+  .days-low    { background:rgba(45,183,87,.18);  color:#2db757; }
+</style>
+</head>
+<body>
+<div class="shell">
+  <div id="nav"></div>
+  <div class="page-head">
+    <span class="eyebrow">PILLAR 1 · ACCESS MANAGEMENT · JML</span>
+    <h1>Joiners, Movers & Leavers review</h1>
+    <p class="subtitle">One of the most commonly failed ITGC access controls: HR records a termination, but IT provisioning never revokes access. This tool cross-references a <strong>terminated-user export</strong> against the current <strong>entitlements population</strong> — every active role held by a former employee is a finding, aged from their termination date.</p>
+  </div>
+
+  <div class="card" style="padding:1.4rem 1.6rem;margin-bottom:1.3rem;">
+    <div class="jml-uploads">
+      <div>
+        <p style="font-size:.8rem;color:var(--muted);margin:0 0 .5rem;">1 · Terminated users export</p>
+        <div class="upload-zone" id="termZone" onclick="document.getElementById('termFile').click()">
+          <strong id="termLabel">Drop CSV or click to browse</strong>
+          Columns: <code>user, termination_date, department, reason</code>
+        </div>
+        <input type="file" id="termFile" accept=".csv" style="display:none">
+      </div>
+      <div>
+        <p style="font-size:.8rem;color:var(--muted);margin:0 0 .5rem;">2 · Current entitlements export</p>
+        <div class="upload-zone" id="entZone" onclick="document.getElementById('entFile').click()">
+          <strong id="entLabel">Drop CSV or click to browse</strong>
+          Columns: <code>user, role</code> — same format as SoD Analyzer
+        </div>
+        <input type="file" id="entFile" accept=".csv" style="display:none">
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="run-btn" id="sampleBtn">▶ Run sample data</button>
+      <button class="run-btn ghost" id="uploadBtn" disabled>▶ Run uploaded files</button>
+    </div>
+    <p id="src" style="color:var(--muted);font-size:.78rem;margin:.5rem 0 0;"></p>
+  </div>
+
+  <div id="results"></div>
+</div>
+<script src="/static/js/common.js"></script>
+<script>
+document.getElementById("nav").innerHTML = navBar("jml");
+
+let termFile = null, entFile = null;
+
+function sevBadge(s){ return `<span class="sev-badge sev-${s}">${s}</span>`; }
+function daysChip(d){
+  if(d === null || d === undefined) return `<span class="days-chip days-high">unknown</span>`;
+  const cls = d >= 30 ? "days-high" : d >= 7 ? "days-medium" : "days-low";
+  return `<span class="days-chip ${cls}">${d}d since termination</span>`;
+}
+
+function render(R){
+  document.getElementById("src").textContent =
+    `Terminated: ${R.term_source} · Entitlements: ${R.ent_source} · As of ${R.as_of}`;
+  const c = R.by_severity;
+  let html = `<section class="stat-row">
+    <div class="stat card"><div class="stat-label">Terminated users</div><div class="stat-value">${R.total_terminated}</div></div>
+    <div class="stat card"><div class="stat-label">With active access</div>
+      <div class="stat-value" style="color:${R.users_with_active_access?'#f95d54':'#2db757'}">${R.users_with_active_access}</div>
+      <div class="stat-note">orphaned accounts</div></div>
+    <div class="stat card"><div class="stat-label">Findings</div>
+      <div class="stat-value" style="color:${R.finding_count?'#f95d54':'#2db757'}">${R.finding_count}</div>
+      <div class="stat-note">${c.High} high · ${c.Medium} med</div></div>
+    <div class="stat card"><div class="stat-label">Clean exits</div>
+      <div class="stat-value" style="color:#2db757">${R.clean_terminated}</div>
+      <div class="stat-note">access fully revoked</div></div>
+  </section>`;
+
+  if(!R.finding_count){
+    html += `<div class="card" style="padding:1.4rem 1.6rem;">
+      <strong style="color:#2db757">No orphaned access found.</strong>
+      All terminated users have had their access fully revoked. The JML control is operating effectively.</div>`;
+  } else {
+    html += `<h2 style="font-size:1.1rem;margin:.5rem 0 .4rem;">Orphaned access — by terminated user</h2>
+      <p style="font-size:.82rem;color:var(--muted);margin:0 0 1rem;">Each finding is one active role held by a user who should have had it revoked. High severity = 30+ days post-termination.</p>`;
+
+    // group findings by user
+    const byUser = {};
+    R.findings.forEach(f => {
+      if(!byUser[f.user]) byUser[f.user] = { info: f, roles: [] };
+      byUser[f.user].roles.push({ role: f.role, system: f.system });
+    });
+
+    Object.values(byUser).forEach(({ info, roles }) => {
+      const sevColor = info.severity === 'High' ? '#f95d54' : info.severity === 'Medium' ? '#ffe600' : '#2db757';
+      html += `<div class="jml-finding" style="--sev:${sevColor}">
+        <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-bottom:.3rem;">
+          <div class="jml-user">${info.user}</div>
+          ${sevBadge(info.severity)}
+          ${daysChip(info.days_since_termination)}
+          ${info.department ? `<span style="font-size:.72rem;color:var(--muted)">${info.department}</span>` : ""}
+        </div>
+        <div class="jml-meta">Terminated ${info.termination_date} · ${info.reason}</div>
+        <div style="margin-bottom:.4rem">${roles.map(r=>
+          `<span class="jml-role">${r.role}</span><span style="font-size:.7rem;color:var(--muted);margin-right:.5rem">on ${r.system}</span>`
+        ).join("")}</div>
+        <div class="jml-risk">${info.risk}</div>
+        <div class="jml-ctrl">Control: ${info.control}</div>
+      </div>`;
+    });
+  }
+  document.getElementById("results").innerHTML = html;
+}
+
+async function runSample(){
+  try{
+    const r = await fetch("/api/jml", { method:"POST", credentials:"include", body: new FormData() });
+    if(!r.ok){
+      let m = "Error"; try{ m = (await r.json()).error; }catch{}
+      if(r.status===401){ showLogin(); return; }
+      alert(m); return;
+    }
+    render(await r.json());
+  }catch(e){ if(e.status===401) showLogin(); else alert(e.message); }
+}
+
+async function runFiles(){
+  const fd = new FormData();
+  if(termFile) fd.append("terminated", termFile);
+  if(entFile)  fd.append("entitlements", entFile);
+  try{
+    const r = await fetch("/api/jml", { method:"POST", credentials:"include", body: fd });
+    if(!r.ok){
+      let m = "Error"; try{ m = (await r.json()).error; }catch{}
+      if(r.status===401){ showLogin(); return; }
+      alert(m); return;
+    }
+    render(await r.json());
+  }catch(e){ alert(e.message); }
+}
+
+function setupDrop(zoneId, inputId, labelId, onPick){
+  const zone = document.getElementById(zoneId);
+  const input = document.getElementById(inputId);
+  input.onchange = () => { if(input.files[0]) onPick(input.files[0]); };
+  ["dragover","dragenter"].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.add("drag"); }));
+  ["dragleave","drop"].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.remove("drag"); }));
+  zone.addEventListener("drop", e => { const f = e.dataTransfer.files[0]; if(f) onPick(f); });
+}
+
+setupDrop("termZone", "termFile", "termLabel", f => {
+  termFile = f;
+  const el = document.getElementById("termLabel");
+  el.textContent = f.name; document.getElementById("termZone").classList.add("filled");
+  if(entFile) document.getElementById("uploadBtn").disabled = false;
+});
+setupDrop("entZone", "entFile", "entLabel", f => {
+  entFile = f;
+  const el = document.getElementById("entLabel");
+  el.textContent = f.name; document.getElementById("entZone").classList.add("filled");
+  if(termFile) document.getElementById("uploadBtn").disabled = false;
+});
+
+document.getElementById("sampleBtn").onclick = runSample;
+document.getElementById("uploadBtn").onclick = runFiles;
+loadMe();
+</script>
+</body>
+</html>
