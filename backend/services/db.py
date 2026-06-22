@@ -54,6 +54,104 @@ def init():
       message TEXT, severity TEXT, acknowledged INTEGER DEFAULT 0);
     """)
     c.commit()
+
+    # ---- GAM / FAIT supplementary tables (additive) ----
+    c.executescript("""
+    CREATE TABLE IF NOT EXISTS gam_systems (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT, type TEXT, process TEXT, hosting TEXT,
+      in_scope INTEGER DEFAULT 1, domains TEXT, cuecs TEXT, notes TEXT,
+      updated_ts TEXT);
+
+    CREATE TABLE IF NOT EXISTS gam_risk_assessment (
+      factor TEXT PRIMARY KEY,
+      assessment TEXT DEFAULT 'Moderate',
+      implication TEXT DEFAULT '', notes TEXT DEFAULT '', updated_ts TEXT);
+
+    CREATE TABLE IF NOT EXISTS gam_ipeitor (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT, system TEXT, control_supported TEXT,
+      completeness_tested INTEGER DEFAULT 0, accuracy_tested INTEGER DEFAULT 0,
+      tested_by TEXT DEFAULT '', test_date TEXT DEFAULT '', notes TEXT DEFAULT '');
+
+    CREATE TABLE IF NOT EXISTS gam_rollforward (
+      control TEXT PRIMARY KEY,
+      interim_date TEXT DEFAULT '', yearend_date TEXT DEFAULT '',
+      changes TEXT DEFAULT '', procedures TEXT DEFAULT '',
+      conclusion TEXT DEFAULT '', performed_by TEXT DEFAULT '', updated_ts TEXT);
+
+    CREATE TABLE IF NOT EXISTS gam_app_controls (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT, application TEXT, control_type TEXT,
+      gitc_dependent INTEGER DEFAULT 1, notes TEXT DEFAULT '');
+
+    CREATE TABLE IF NOT EXISTS fait_walkthroughs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      control TEXT, description TEXT DEFAULT '', evidence TEXT DEFAULT '',
+      design_ok INTEGER DEFAULT 1, conclusion TEXT DEFAULT '',
+      performed_by TEXT DEFAULT '', walkthrough_date TEXT DEFAULT '');
+
+    CREATE TABLE IF NOT EXISTS fait_prior_year (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      finding TEXT, control TEXT, classification TEXT,
+      prior_status TEXT DEFAULT 'Open', current_status TEXT DEFAULT 'Open',
+      repeat INTEGER DEFAULT 1, notes TEXT DEFAULT '');
+
+    CREATE TABLE IF NOT EXISTS fait_racm (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      control_ref TEXT, domain TEXT, objective TEXT,
+      risk TEXT DEFAULT '', assertion TEXT DEFAULT '',
+      approach TEXT DEFAULT '', population TEXT DEFAULT '', conclusion TEXT DEFAULT '');
+
+    CREATE TABLE IF NOT EXISTS fait_exc_override (
+      fingerprint TEXT PRIMARY KEY,
+      classification TEXT DEFAULT '',
+      condition_text TEXT DEFAULT '', criteria_text TEXT DEFAULT '',
+      cause_text TEXT DEFAULT '', effect_text TEXT DEFAULT '',
+      recommendation_text TEXT DEFAULT '', mgmt_response TEXT DEFAULT '',
+      updated_ts TEXT);
+    """)
+    c.commit()
+
+    # Seed default GAM risk factors if table is empty
+    existing = c.execute("SELECT COUNT(*) as n FROM gam_risk_assessment").fetchone()["n"]
+    if existing == 0:
+        ts = __import__("time").strftime("%Y-%m-%d %H:%M:%S")
+        defaults = [
+            ("System complexity",       "Moderate", "Standard population testing applies", ""),
+            ("Degree of IT reliance",   "High",     "Financial reporting depends on in-scope IT systems", ""),
+            ("IT changes in period",    "Moderate", "Change domain testing required", ""),
+            ("History of deficiencies", "Moderate", "Increases inherent IT risk", ""),
+            ("Staff turnover / JML",    "Moderate", "Off-boarding controls must be tested", ""),
+            ("Third-party / cloud",     "Low",      "SOC reports required where applicable", ""),
+        ]
+        for factor, assessment, impl, notes in defaults:
+            c.execute("INSERT OR IGNORE INTO gam_risk_assessment (factor,assessment,implication,notes,updated_ts) VALUES (?,?,?,?,?)",
+                      (factor, assessment, impl, notes, ts))
+        c.commit()
+
+    # Seed default RACM if empty
+    existing_racm = c.execute("SELECT COUNT(*) as n FROM fait_racm").fetchone()["n"]
+    if existing_racm == 0:
+        ts = __import__("time").strftime("%Y-%m-%d %H:%M:%S")
+        racm_defaults = [
+            ("GITC-01", "Access — SoD",   "No user holds toxic role combinations",
+             "Fraud / error through unauthorised transactions", "Occurrence / Authorisation",
+             "Full population automated rule engine", "All users", ""),
+            ("GITC-02", "Access — JML",   "Terminated employees have access revoked promptly",
+             "Unauthorised access by former employees", "Existence / Rights",
+             "Full population cross-reference", "All exits", ""),
+            ("GITC-03", "Access — Recert","All grants reviewed on cadence",
+             "Inappropriate access due to lack of review", "Rights & obligations",
+             "Full population aging check", "All grants", ""),
+            ("GITC-04", "Change Mgmt",    "All changes authorised, tested, independently deployed",
+             "Unauthorised changes impacting data integrity", "Completeness / Accuracy",
+             "Full population change-log audit", "All changes", ""),
+        ]
+        for row in racm_defaults:
+            c.execute("INSERT INTO fait_racm (control_ref,domain,objective,risk,assertion,approach,population,conclusion) VALUES (?,?,?,?,?,?,?,?)", row)
+        c.commit()
+
     # add sign-off columns to ccm_exceptions if upgrading from an older schema
     for col, definition in [("reviewed_by", "TEXT DEFAULT ''"),
                              ("reviewed_ts",  "TEXT DEFAULT NULL")]:

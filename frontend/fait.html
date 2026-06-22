@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FAIT | ITGC Toolkit</title>
+<link rel="stylesheet" href="/static/css/style.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  .page-hero{padding:1.6rem 0 .6rem;border-bottom:1px solid var(--border);margin-bottom:1.4rem;}
+  .hero-label{font-size:.7rem;font-weight:700;letter-spacing:.1em;color:#0d2b5e;text-transform:uppercase;margin-bottom:.3rem;}
+  .hero-title{font-size:1.7rem;font-weight:700;color:var(--ink);margin:0 0 .25rem;}
+  .hero-sub{font-size:.9rem;color:var(--muted);}
+
+  .section-card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:1.3rem 1.5rem;margin-bottom:1.2rem;box-shadow:var(--shadow);}
+  .section-title{font-size:1rem;font-weight:700;color:var(--ink);margin:0 0 .1rem;display:flex;align-items:center;gap:.5rem;}
+  .section-sub{font-size:.8rem;color:var(--muted);margin:0 0 1rem;}
+  .section-badge{font-size:.65rem;font-weight:700;letter-spacing:.06em;padding:.2rem .55rem;border-radius:20px;background:#e0f0ff;color:#0d2b5e;}
+
+  .btn-sm{padding:.35rem .9rem;font-size:.78rem;border-radius:8px;cursor:pointer;border:none;font-weight:600;}
+  .btn-primary{background:#0d2b5e;color:#fff;}
+  .btn-primary:hover{opacity:.85;}
+  .btn-danger{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;}
+  .btn-ghost{background:var(--panel-soft);color:var(--ink);border:1px solid var(--border);}
+  .btn-ghost:hover{border-color:#0d2b5e;}
+  .btn-save{background:#f0f4ff;color:#0d2b5e;border:1px solid #c7d7fa;font-size:.75rem;}
+  .btn-save:hover{background:#dce6ff;}
+
+  /* Deficiency summary strip */
+  .def-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:.8rem;margin-bottom:1.2rem;}
+  .def-card{border-radius:12px;padding:.9rem 1.1rem;border:1px solid transparent;}
+  .def-card.MW{background:#fee2e2;border-color:#fca5a5;}
+  .def-card.SD{background:#fefce8;border-color:#fde68a;}
+  .def-card.CD{background:#f0fdf4;border-color:#bbf7d0;}
+  .def-label{font-size:.68rem;font-weight:700;letter-spacing:.06em;margin-bottom:.2rem;}
+  .def-label.MW{color:#991b1b;}
+  .def-label.SD{color:#854d0e;}
+  .def-label.CD{color:#166534;}
+  .def-count{font-size:2rem;font-weight:800;line-height:1;}
+  .def-count.MW{color:#dc2626;}
+  .def-count.SD{color:#d97706;}
+  .def-count.CD{color:#16a34a;}
+  .def-desc{font-size:.72rem;color:var(--muted);margin-top:.2rem;line-height:1.4;}
+
+  /* Findings accordion */
+  .finding-card{border:1px solid var(--border);border-radius:12px;margin-bottom:.7rem;overflow:hidden;}
+  .finding-header{display:flex;align-items:center;gap:.7rem;padding:.75rem 1rem;cursor:pointer;background:var(--panel-soft);justify-content:space-between;}
+  .finding-header:hover{background:#f0f4ff;}
+  .finding-left{display:flex;align-items:center;gap:.7rem;flex:1;}
+  .finding-num{font-size:.7rem;font-weight:700;color:#0d2b5e;min-width:24px;}
+  .finding-title{font-weight:600;font-size:.88rem;color:var(--ink);}
+  .finding-ctrl{font-size:.74rem;color:var(--muted);}
+  .cls-badge{font-size:.68rem;font-weight:700;letter-spacing:.04em;padding:.2rem .55rem;border-radius:20px;white-space:nowrap;}
+  .cls-MW{background:#fee2e2;color:#991b1b;}
+  .cls-SD{background:#fefce8;color:#854d0e;}
+  .cls-CD{background:#f0fdf4;color:#166534;}
+  .finding-body{display:none;padding:1rem 1.1rem;border-top:1px solid var(--border);}
+  .finding-body.open{display:block;}
+  .comp-table{width:100%;border-collapse:collapse;font-size:.84rem;margin-bottom:.8rem;}
+  .comp-table tr td:first-child{font-weight:700;color:#0d2b5e;width:140px;padding:.45rem .6rem;vertical-align:top;white-space:nowrap;}
+  .comp-table tr td:last-child{padding:.45rem .6rem;color:var(--ink);line-height:1.5;}
+  .comp-table tr{border-bottom:1px solid var(--border);}
+  .comp-table tr:last-child{border-bottom:none;}
+  .comp-table textarea{width:100%;padding:.3rem .5rem;font-size:.82rem;border:1px solid var(--border);border-radius:6px;resize:vertical;min-height:44px;font-family:inherit;color:var(--ink);}
+  .cls-select{padding:.25rem .5rem;font-size:.8rem;border:1px solid var(--border);border-radius:6px;}
+  .mgmt-resp{width:100%;padding:.5rem;font-size:.82rem;border:1px solid #fde68a;background:#fffde7;border-radius:7px;resize:vertical;min-height:52px;font-family:inherit;}
+
+  /* Data table */
+  .data-table{width:100%;border-collapse:collapse;font-size:.83rem;}
+  .data-table th{background:#0d2b5e;color:#fff;padding:.5rem .75rem;text-align:left;font-size:.74rem;letter-spacing:.04em;}
+  .data-table td{padding:.45rem .75rem;border-bottom:1px solid var(--border);vertical-align:top;}
+  .data-table tr:last-child td{border-bottom:none;}
+  .data-table tr:hover td{background:#fafafa;}
+  .data-table textarea{width:100%;padding:.25rem .4rem;font-size:.8rem;border:1px solid var(--border);border-radius:5px;resize:vertical;min-height:38px;font-family:inherit;}
+  .data-table input,.data-table select{width:100%;padding:.25rem .4rem;font-size:.8rem;border:1px solid var(--border);border-radius:5px;font-family:inherit;}
+
+  /* Walkthrough cards */
+  .wt-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.9rem;}
+  @media(max-width:640px){.wt-grid{grid-template-columns:1fr;}}
+  .wt-card{background:var(--panel-soft);border:1px solid var(--border);border-radius:12px;padding:1rem 1.1rem;}
+  .wt-title{font-weight:700;font-size:.92rem;color:var(--ink);margin-bottom:.7rem;}
+  .field-label{font-size:.74rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.2rem;margin-top:.5rem;}
+  .field-label:first-child{margin-top:0;}
+  .wt-card input,.wt-card textarea,.wt-card select{width:100%;padding:.3rem .5rem;font-size:.82rem;border:1px solid var(--border);border-radius:7px;font-family:inherit;background:var(--panel);color:var(--ink);}
+  .wt-card textarea{resize:vertical;min-height:50px;}
+  .design-ok{display:flex;gap:.7rem;margin:.3rem 0;}
+  .design-ok label{display:flex;align-items:center;gap:.25rem;font-size:.82rem;cursor:pointer;}
+
+  /* Prior year */
+  .add-form{background:var(--panel-soft);border:1px solid var(--border);border-radius:10px;padding:1rem 1.1rem;margin-top:.8rem;display:none;}
+  .add-form.open{display:block;}
+  .form-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.5rem;margin-bottom:.5rem;}
+  .form-row label{font-size:.75rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.2rem;}
+  .form-row input,.form-row select,.form-row textarea{width:100%;padding:.35rem .5rem;font-size:.82rem;border:1px solid var(--border);border-radius:7px;background:var(--panel);color:var(--ink);}
+  .repeat-badge{background:#fee2e2;color:#991b1b;padding:.1rem .45rem;border-radius:20px;font-size:.7rem;font-weight:700;}
+  .new-badge{background:#f0fdf4;color:#166534;padding:.1rem .45rem;border-radius:20px;font-size:.7rem;font-weight:700;}
+
+  /* Program dev */
+  .pd-table{width:100%;border-collapse:collapse;font-size:.85rem;}
+  .pd-table th{background:#0d2b5e;color:#fff;padding:.5rem .75rem;font-size:.74rem;text-align:left;}
+  .pd-table td{padding:.55rem .75rem;border-bottom:1px solid var(--border);vertical-align:middle;}
+  .pd-table td:first-child{font-weight:600;color:#0d2b5e;width:180px;}
+  .pd-result{display:flex;gap:.6rem;}
+  .pd-result label{display:flex;align-items:center;gap:.25rem;font-size:.82rem;cursor:pointer;}
+  .pd-notes{width:100%;padding:.25rem .45rem;font-size:.8rem;border:1px solid var(--border);border-radius:5px;}
+
+  .empty-state{text-align:center;padding:2rem;color:var(--muted);font-size:.85rem;}
+  .toast{position:fixed;bottom:1.5rem;right:1.5rem;background:#0d2b5e;color:#fff;padding:.6rem 1.2rem;border-radius:10px;font-size:.82rem;z-index:99;display:none;}
+  .chevron{transition:transform .2s;display:inline-block;}
+  .chevron.open{transform:rotate(180deg);}
+</style>
+</head>
+<body>
+<div id="nav"></div>
+<main class="container">
+
+  <div class="page-hero">
+    <div class="hero-label">Financial Audit IT</div>
+    <h1 class="hero-title">FAIT — IT Audit Workbench</h1>
+    <p class="hero-sub">Deficiency Classification · Five-Component Findings · RACM · Walkthroughs · Prior Year · Program Development</p>
+  </div>
+
+  <!-- Section 1: Deficiency Classification -->
+  <div class="section-card">
+    <div class="section-title">1 · Deficiency Classification <span class="section-badge">FAIT / SOX 404</span></div>
+    <p class="section-sub">Open CCM exceptions auto-classified using the SOX deficiency ladder. Override classification or edit any component.</p>
+    <div class="def-strip" id="defStrip">
+      <div class="def-card MW"><div class="def-label MW">MATERIAL WEAKNESS</div><div class="def-count MW" id="mwCount">—</div><div class="def-desc">Reasonable possibility of material misstatement not prevented or detected</div></div>
+      <div class="def-card SD"><div class="def-label SD">SIGNIFICANT DEFICIENCY</div><div class="def-count SD" id="sdCount">—</div><div class="def-desc">Warrants attention of those charged with governance</div></div>
+      <div class="def-card CD"><div class="def-label CD">CONTROL DEFICIENCY</div><div class="def-count CD" id="cdCount">—</div><div class="def-desc">Design or operating effectiveness gap below reportable threshold</div></div>
+    </div>
+    <div id="findingsList"></div>
+  </div>
+
+  <!-- Section 2: RACM -->
+  <div class="section-card">
+    <div class="section-title">2 · Control Matrix (RACM) <span class="section-badge">FAIT Required</span></div>
+    <p class="section-sub">Risk and Control Matrix — maps each risk to the control, assertion, test approach, and conclusion. Pre-seeded with the four ITGC controls.</p>
+    <div style="text-align:right;margin-bottom:.6rem;">
+      <button class="btn-sm btn-primary" onclick="toggleForm('racmForm')">+ Add control</button>
+    </div>
+    <div class="add-form" id="racmForm">
+      <div class="form-row">
+        <div><label>Control ref</label><input id="racmRef" placeholder="GITC-05"></div>
+        <div><label>Domain</label><input id="racmDomain" placeholder="Access — SoD"></div>
+        <div style="grid-column:span 2"><label>Control objective</label><input id="racmObj" placeholder="What the control is designed to achieve"></div>
+      </div>
+      <div class="form-row">
+        <div><label>Risk addressed</label><input id="racmRisk" placeholder="Risk mitigated by this control"></div>
+        <div><label>Assertion</label><select id="racmAssert">
+          <option>Occurrence / Authorisation</option><option>Completeness / Accuracy</option>
+          <option>Rights &amp; obligations</option><option>Existence</option><option>Multiple</option>
+        </select></div>
+        <div><label>Test approach</label><input id="racmApproach" placeholder="Full population / sample / checklist"></div>
+        <div><label>Population</label><input id="racmPop" placeholder="e.g. All users"></div>
+      </div>
+      <div style="text-align:right;display:flex;gap:.5rem;justify-content:flex-end">
+        <button class="btn-sm btn-ghost" onclick="toggleForm('racmForm')">Cancel</button>
+        <button class="btn-sm btn-primary" onclick="addRacm()">Save</button>
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+    <table class="data-table" id="racmTable">
+      <thead><tr><th>Ref</th><th>Domain</th><th>Objective</th><th>Risk</th><th>Assertion</th><th>Approach</th><th>Population</th><th>Conclusion</th><th></th></tr></thead>
+      <tbody id="racmBody"><tr><td colspan="9" class="empty-state">Loading…</td></tr></tbody>
+    </table>
+    </div>
+  </div>
+
+  <!-- Section 3: Walkthrough Checklist -->
+  <div class="section-card">
+    <div class="section-title">3 · Walkthrough Documentation <span class="section-badge">FAIT Required</span></div>
+    <p class="section-sub">FAIT performs a walkthrough of each control before testing — observing it operate once to confirm design effectiveness. Document evidence and conclusion here.</p>
+    <div class="wt-grid" id="wtGrid"><div class="empty-state">Loading…</div></div>
+  </div>
+
+  <!-- Section 4: Prior Year Comparison -->
+  <div class="section-card">
+    <div class="section-title">4 · Prior Year Comparison <span class="section-badge">FAIT Required</span></div>
+    <p class="section-sub">Compare current findings against prior year. Repeat findings automatically escalate deficiency classification.</p>
+    <div style="text-align:right;margin-bottom:.6rem;">
+      <button class="btn-sm btn-primary" onclick="toggleForm('pyForm')">+ Add prior year finding</button>
+    </div>
+    <div class="add-form" id="pyForm">
+      <div class="form-row">
+        <div style="grid-column:span 2"><label>Finding description</label><input id="pyFinding" placeholder="Brief description of the finding"></div>
+        <div><label>Control</label><select id="pyCtrl"><option>SoD</option><option>Change</option><option>Recert</option><option>JML</option></select></div>
+        <div><label>Classification</label><select id="pyCls"><option>Material Weakness</option><option>Significant Deficiency</option><option>Control Deficiency</option></select></div>
+      </div>
+      <div class="form-row">
+        <div><label>Prior year status</label><select id="pyPrior"><option>Open</option><option>Remediated</option><option>Partially remediated</option></select></div>
+        <div><label>Current year status</label><select id="pyCurr"><option>Open</option><option>Remediated</option><option>Partially remediated</option></select></div>
+        <div><label>Repeat finding?</label><select id="pyRepeat"><option value="1">Yes — repeat</option><option value="0">No — new</option></select></div>
+        <div><label>Notes</label><input id="pyNotes" placeholder="Context or management action"></div>
+      </div>
+      <div style="text-align:right;display:flex;gap:.5rem;justify-content:flex-end">
+        <button class="btn-sm btn-ghost" onclick="toggleForm('pyForm')">Cancel</button>
+        <button class="btn-sm btn-primary" onclick="addPy()">Save</button>
+      </div>
+    </div>
+    <table class="data-table" id="pyTable">
+      <thead><tr><th>Finding</th><th>Control</th><th>Classification</th><th>Prior year</th><th>Current year</th><th>Repeat?</th><th>Notes</th><th></th></tr></thead>
+      <tbody id="pyBody"><tr><td colspan="8" class="empty-state">Loading…</td></tr></tbody>
+    </table>
+  </div>
+
+  <!-- Section 5: Program Development (4th Pillar) -->
+  <div class="section-card">
+    <div class="section-title">5 · Program Development — 4th ITGC Pillar <span class="section-badge">Checklist</span></div>
+    <p class="section-sub">Controls over new system implementations and major enhancements. Checklist-based — evidence is gathered through inquiry and inspection, not population testing.</p>
+    <table class="pd-table" id="pdTable">
+      <thead><tr><th>Area</th><th>Control question</th><th>Result</th><th>Evidence / notes</th></tr></thead>
+      <tbody id="pdBody"><tr><td colspan="4" class="empty-state">Loading…</td></tr></tbody>
+    </table>
+    <div style="text-align:right;margin-top:.7rem">
+      <button class="btn-sm btn-primary" onclick="savePd()">Save checklist</button>
+    </div>
+  </div>
+
+  <!-- Section 6: IPE/ITOR Tracker -->
+  <div class="section-card">
+    <div class="section-title">6 · IPE / ITOR Tracker <span class="section-badge">FAIT / GAM</span></div>
+    <p class="section-sub">Reports the client uses in their own financial controls. Managed centrally — shared with the GAM page.</p>
+    <div style="text-align:right;margin-bottom:.6rem;">
+      <button class="btn-sm btn-primary" onclick="toggleForm('ipeFormF')">+ Add IPE / ITOR</button>
+    </div>
+    <div class="add-form" id="ipeFormF">
+      <div class="form-row">
+        <div><label>Report / data name</label><input id="fIpeName" placeholder="e.g. Aged debtors report"></div>
+        <div><label>Source system</label><input id="fIpeSys" placeholder="e.g. SAP ERP"></div>
+        <div><label>Control it supports</label><input id="fIpeCtrl" placeholder="e.g. Bad debt provision"></div>
+      </div>
+      <div class="form-row">
+        <div><label>Completeness tested</label><select id="fIpeComp"><option value="1">Yes</option><option value="0">No</option></select></div>
+        <div><label>Accuracy tested</label><select id="fIpeAcc"><option value="1">Yes</option><option value="0">No</option></select></div>
+        <div><label>Tested by</label><input id="fIpeBy" placeholder="Name"></div>
+        <div><label>Test date</label><input type="date" id="fIpeDate"></div>
+      </div>
+      <div style="text-align:right;display:flex;gap:.5rem;justify-content:flex-end">
+        <button class="btn-sm btn-ghost" onclick="toggleForm('ipeFormF')">Cancel</button>
+        <button class="btn-sm btn-primary" onclick="addIpeF()">Save</button>
+      </div>
+    </div>
+    <table class="data-table" id="ipeTableF">
+      <thead><tr><th>Report</th><th>System</th><th>Control supported</th><th>Completeness</th><th>Accuracy</th><th>Tested by</th><th>Date</th><th></th></tr></thead>
+      <tbody id="ipeBodyF"><tr><td colspan="8" class="empty-state">Loading…</td></tr></tbody>
+    </table>
+  </div>
+
+</main>
+<div class="toast" id="toast"></div>
+
+<script src="/static/js/common.js"></script>
+<script>
+document.getElementById("nav").innerHTML = navBar("fait");
+loadMe();
+
+function toast(msg){ const t=document.getElementById("toast"); t.textContent=msg; t.style.display="block"; setTimeout(()=>{t.style.display="none"},2400); }
+function toggleForm(id){ document.getElementById(id).classList.toggle("open"); }
+function yn(v){ return v ? '<span style="color:#16a34a;font-weight:700">Yes</span>' : '<span style="color:#dc2626">No</span>'; }
+function clsBadge(c){ const k=c==="Material Weakness"?"MW":c==="Significant Deficiency"?"SD":"CD"; return `<span class="cls-badge cls-${k}">${c}</span>`; }
+
+// ── Deficiency Classification ─────────────────────────────────────────────
+async function loadDeficiencies(){
+  const d = await API.get("fait/deficiencies");
+  document.getElementById("mwCount").textContent = d.material_weakness;
+  document.getElementById("sdCount").textContent = d.significant_deficiency;
+  document.getElementById("cdCount").textContent = d.control_deficiency;
+
+  const list = document.getElementById("findingsList");
+  if(!d.exceptions.length){
+    list.innerHTML = '<div class="empty-state">No open exceptions — all controls effective</div>'; return;
+  }
+  list.innerHTML = d.exceptions.map((e,i)=>{
+    const k = e.classification==="Material Weakness"?"MW":e.classification==="Significant Deficiency"?"SD":"CD";
+    return `<div class="finding-card" id="fc_${e.fingerprint}">
+      <div class="finding-header" onclick="toggleFinding('${e.fingerprint}')">
+        <div class="finding-left">
+          <span class="finding-num">#${i+1}</span>
+          <div>
+            <div class="finding-title">${e.entity} — ${e.rule}</div>
+            <div class="finding-ctrl">${e.control} · Age: ${e.age_days}d · ${e.status}</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:.6rem">
+          ${clsBadge(e.classification)}
+          <span class="chevron" id="chev_${e.fingerprint}">▾</span>
+        </div>
+      </div>
+      <div class="finding-body" id="fb_${e.fingerprint}">
+        <div style="display:flex;align-items:center;gap:.7rem;margin-bottom:.8rem;flex-wrap:wrap">
+          <span style="font-size:.8rem;font-weight:600;color:var(--muted)">Override classification:</span>
+          <select class="cls-select" id="cls_${e.fingerprint}">
+            ${["Material Weakness","Significant Deficiency","Control Deficiency"].map(o=>`<option${e.classification===o?" selected":""}>${o}</option>`).join("")}
+          </select>
+          <button class="btn-sm btn-save" onclick="saveOverride('${e.fingerprint}')">Save changes</button>
+        </div>
+        <table class="comp-table">
+          <tr><td>Condition</td><td><textarea id="cond_${e.fingerprint}" rows="2">${e.condition}</textarea></td></tr>
+          <tr><td>Criteria</td><td><textarea id="crit_${e.fingerprint}" rows="2">${e.criteria}</textarea></td></tr>
+          <tr><td>Cause</td><td><textarea id="cause_${e.fingerprint}" rows="2">${e.cause}</textarea></td></tr>
+          <tr><td>Effect</td><td><textarea id="eff_${e.fingerprint}" rows="2">${e.effect}</textarea></td></tr>
+          <tr><td>Recommendation</td><td><textarea id="rec_${e.fingerprint}" rows="2">${e.recommendation}</textarea></td></tr>
+          <tr><td>Management<br>response</td><td><textarea class="mgmt-resp" id="mgmt_${e.fingerprint}" rows="2" placeholder="Management to complete…">${e.mgmt_response||""}</textarea></td></tr>
+        </table>
+      </div>
+    </div>`;
+  }).join("");
+}
+function toggleFinding(fp){
+  const body=document.getElementById(`fb_${fp}`); const chev=document.getElementById(`chev_${fp}`);
+  body.classList.toggle("open"); chev.classList.toggle("open");
+}
+async function saveOverride(fp){
+  const body={
+    classification:       document.getElementById(`cls_${fp}`).value,
+    condition_text:       document.getElementById(`cond_${fp}`).value,
+    criteria_text:        document.getElementById(`crit_${fp}`).value,
+    cause_text:           document.getElementById(`cause_${fp}`).value,
+    effect_text:          document.getElementById(`eff_${fp}`).value,
+    recommendation_text:  document.getElementById(`rec_${fp}`).value,
+    mgmt_response:        document.getElementById(`mgmt_${fp}`).value,
+  };
+  await API.post(`fait/exceptions/${fp}/override`, body);
+  toast("Finding saved"); loadDeficiencies();
+}
+
+// ── RACM ─────────────────────────────────────────────────────────────────
+async function loadRacm(){
+  const rows = await API.get("fait/racm");
+  const tbody = document.getElementById("racmBody");
+  if(!rows.length){ tbody.innerHTML='<tr><td colspan="9" class="empty-state">No RACM entries</td></tr>'; return; }
+  tbody.innerHTML = rows.map(r=>`
+    <tr>
+      <td><strong>${r.control_ref}</strong></td>
+      <td>${r.domain}</td>
+      <td>${r.objective}</td>
+      <td>${r.risk}</td>
+      <td>${r.assertion}</td>
+      <td>${r.approach}</td>
+      <td>${r.population}</td>
+      <td><select onchange="updateRacmConc(${r.id},this.value)" style="font-size:.78rem;padding:.2rem .4rem;border:1px solid var(--border);border-radius:5px">
+        ${["","Effective","Exceptions noted","Not tested"].map(o=>`<option${r.conclusion===o?" selected":""}>${o}</option>`).join("")}
+      </select></td>
+      <td><button class="btn-sm btn-danger" onclick="deleteRacm(${r.id})">✕</button></td>
+    </tr>`).join("");
+}
+async function addRacm(){
+  const body={
+    control_ref: document.getElementById("racmRef").value.trim(),
+    domain: document.getElementById("racmDomain").value.trim(),
+    objective: document.getElementById("racmObj").value.trim(),
+    risk: document.getElementById("racmRisk").value.trim(),
+    assertion: document.getElementById("racmAssert").value,
+    approach: document.getElementById("racmApproach").value.trim(),
+    population: document.getElementById("racmPop").value.trim(),
+    conclusion: "",
+  };
+  if(!body.control_ref){ toast("Control ref required"); return; }
+  await API.post("fait/racm", body);
+  toast("RACM entry added"); toggleForm("racmForm"); loadRacm();
+}
+async function updateRacmConc(id, val){
+  await fetch(`/api/fait/racm/${id}`,{method:"PUT",credentials:"include",
+    headers:{"Content-Type":"application/json"},body:JSON.stringify({conclusion:val})});
+  toast("Conclusion saved");
+}
+async function deleteRacm(id){ if(!confirm("Remove?")) return; await fetch(`/api/fait/racm/${id}`,{method:"DELETE",credentials:"include"}); loadRacm(); }
+
+// ── Walkthroughs ──────────────────────────────────────────────────────────
+async function loadWalkthroughs(){
+  const rows = await API.get("fait/walkthroughs");
+  document.getElementById("wtGrid").innerHTML = rows.map(r=>`
+    <div class="wt-card">
+      <div class="wt-title">${r.control}</div>
+      <label class="field-label">Control description</label>
+      <textarea id="wt_desc_${r.control}" rows="2">${r.description||""}</textarea>
+      <label class="field-label">Evidence obtained (screenshot, email, log)</label>
+      <input id="wt_ev_${r.control}" value="${r.evidence||""}" placeholder="e.g. Screenshot of SoD approval">
+      <label class="field-label">Design effectiveness</label>
+      <div class="design-ok">
+        <label><input type="radio" name="wt_ok_${r.control}" value="1" ${r.design_ok?"checked":""}> Designed effectively</label>
+        <label><input type="radio" name="wt_ok_${r.control}" value="0" ${!r.design_ok?"checked":""}> Design gap</label>
+      </div>
+      <label class="field-label">Walkthrough conclusion</label>
+      <select id="wt_conc_${r.control}" style="width:100%;padding:.3rem;font-size:.82rem;border:1px solid var(--border);border-radius:7px">
+        ${["","Control design is effective","Design gap identified — document finding","Not yet performed"].map(o=>`<option${r.conclusion===o?" selected":""}>${o}</option>`).join("")}
+      </select>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-top:.4rem">
+        <div><label class="field-label">Performed by</label><input id="wt_by_${r.control}" value="${r.performed_by||""}" placeholder="Name"></div>
+        <div><label class="field-label">Date</label><input type="date" id="wt_date_${r.control}" value="${r.walkthrough_date||""}"></div>
+      </div>
+      <div style="text-align:right;margin-top:.6rem">
+        <button class="btn-sm btn-primary" onclick="saveWt('${r.control}')">Save walkthrough</button>
+      </div>
+    </div>`).join("");
+}
+async function saveWt(ctrl){
+  const ok = document.querySelector(`input[name="wt_ok_${ctrl}"]:checked`);
+  const body={
+    control: ctrl,
+    description: document.getElementById(`wt_desc_${ctrl}`).value,
+    evidence: document.getElementById(`wt_ev_${ctrl}`).value,
+    design_ok: ok ? ok.value==="1" : true,
+    conclusion: document.getElementById(`wt_conc_${ctrl}`).value,
+    performed_by: document.getElementById(`wt_by_${ctrl}`).value,
+    walkthrough_date: document.getElementById(`wt_date_${ctrl}`).value,
+  };
+  await API.post("fait/walkthroughs", body);
+  toast(`Walkthrough saved for ${ctrl}`);
+}
+
+// ── Prior Year ────────────────────────────────────────────────────────────
+async function loadPy(){
+  const rows = await API.get("fait/prior-year");
+  const tbody = document.getElementById("pyBody");
+  if(!rows.length){ tbody.innerHTML='<tr><td colspan="8" class="empty-state">No prior year findings added yet</td></tr>'; return; }
+  tbody.innerHTML = rows.map(r=>`
+    <tr>
+      <td>${r.finding}</td>
+      <td>${r.control}</td>
+      <td>${clsBadge(r.classification)}</td>
+      <td>${r.prior_status}</td>
+      <td>${r.current_status}</td>
+      <td>${r.repeat ? '<span class="repeat-badge">Repeat</span>' : '<span class="new-badge">New</span>'}</td>
+      <td>${r.notes||"—"}</td>
+      <td><button class="btn-sm btn-danger" onclick="deletePy(${r.id})">✕</button></td>
+    </tr>`).join("");
+}
+async function addPy(){
+  const body={
+    finding: document.getElementById("pyFinding").value.trim(),
+    control: document.getElementById("pyCtrl").value,
+    classification: document.getElementById("pyCls").value,
+    prior_status: document.getElementById("pyPrior").value,
+    current_status: document.getElementById("pyCurr").value,
+    repeat: document.getElementById("pyRepeat").value==="1",
+    notes: document.getElementById("pyNotes").value.trim(),
+  };
+  if(!body.finding){ toast("Finding description required"); return; }
+  await API.post("fait/prior-year", body);
+  toast("Prior year finding added"); toggleForm("pyForm"); loadPy();
+}
+async function deletePy(id){ await fetch(`/api/fait/prior-year/${id}`,{method:"DELETE",credentials:"include"}); loadPy(); }
+
+// ── Program Development ───────────────────────────────────────────────────
+let pdChecklist = [];
+const PD_KEY = "fait_pd_checklist";
+async function loadPd(){
+  pdChecklist = await API.get("fait/prog-dev");
+  const saved = JSON.parse(localStorage.getItem(PD_KEY)||"{}");
+  document.getElementById("pdBody").innerHTML = pdChecklist.map((q,i)=>{
+    const sv = saved[i] || {};
+    return `<tr>
+      <td>${q.area}</td>
+      <td>${q.question}</td>
+      <td><div class="pd-result">
+        <label><input type="radio" name="pd_${i}" value="Yes" ${sv.result==="Yes"?"checked":""}> Yes</label>
+        <label><input type="radio" name="pd_${i}" value="No" ${sv.result==="No"?"checked":""}> No</label>
+        <label><input type="radio" name="pd_${i}" value="N/A" ${sv.result==="N/A"?"checked":""}> N/A</label>
+      </div></td>
+      <td><input class="pd-notes" value="${sv.notes||""}" placeholder="Evidence / notes"></td>
+    </tr>`;
+  }).join("");
+}
+function savePd(){
+  const saved={};
+  pdChecklist.forEach((_,i)=>{
+    const r=document.querySelector(`input[name="pd_${i}"]:checked`);
+    const n=document.querySelectorAll(".pd-notes")[i];
+    saved[i]={result:r?r.value:"",notes:n?n.value:""};
+  });
+  localStorage.setItem(PD_KEY, JSON.stringify(saved));
+  toast("Program development checklist saved");
+}
+
+// ── IPE/ITOR (FAIT copy — shared DB) ─────────────────────────────────────
+async function loadIpeF(){
+  const rows = await API.get("gam/ipeitor");
+  const tbody = document.getElementById("ipeBodyF");
+  if(!rows.length){ tbody.innerHTML='<tr><td colspan="8" class="empty-state">No IPE/ITOR items yet — add via GAM page or here</td></tr>'; return; }
+  tbody.innerHTML = rows.map(r=>`
+    <tr>
+      <td><strong>${r.name}</strong></td><td>${r.system}</td><td>${r.control_supported}</td>
+      <td>${yn(r.completeness_tested)}</td><td>${yn(r.accuracy_tested)}</td>
+      <td>${r.tested_by||"—"}</td><td>${r.test_date||"—"}</td>
+      <td><button class="btn-sm btn-danger" onclick="deleteIpeF(${r.id})">✕</button></td>
+    </tr>`).join("");
+}
+async function addIpeF(){
+  const body={
+    name: document.getElementById("fIpeName").value.trim(),
+    system: document.getElementById("fIpeSys").value.trim(),
+    control_supported: document.getElementById("fIpeCtrl").value.trim(),
+    completeness_tested: document.getElementById("fIpeComp").value==="1",
+    accuracy_tested: document.getElementById("fIpeAcc").value==="1",
+    tested_by: document.getElementById("fIpeBy").value.trim(),
+    test_date: document.getElementById("fIpeDate").value, notes:"",
+  };
+  if(!body.name){ toast("Report name required"); return; }
+  await API.post("gam/ipeitor", body);
+  toast("IPE/ITOR saved"); toggleForm("ipeFormF"); loadIpeF();
+}
+async function deleteIpeF(id){ await fetch(`/api/gam/ipeitor/${id}`,{method:"DELETE",credentials:"include"}); loadIpeF(); }
+
+// ── Boot ──────────────────────────────────────────────────────────────────
+(async()=>{
+  await loadMe();
+  await Promise.all([loadDeficiencies(), loadRacm(), loadWalkthroughs(), loadPy(), loadPd(), loadIpeF()]);
+})();
+</script>
+</body>
+</html>

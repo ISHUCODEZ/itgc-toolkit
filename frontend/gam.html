@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GAM — GITC | ITGC Toolkit</title>
+<link rel="stylesheet" href="/static/css/style.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  .page-hero{padding:1.6rem 0 .6rem;border-bottom:1px solid var(--border);margin-bottom:1.4rem;}
+  .hero-label{font-size:.7rem;font-weight:700;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;margin-bottom:.3rem;}
+  .hero-title{font-size:1.7rem;font-weight:700;color:var(--ink);margin:0 0 .25rem;}
+  .hero-sub{font-size:.9rem;color:var(--muted);}
+
+  .section-card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:1.3rem 1.5rem;margin-bottom:1.2rem;box-shadow:var(--shadow);}
+  .section-title{font-size:1rem;font-weight:700;color:var(--ink);margin:0 0 .1rem;display:flex;align-items:center;gap:.5rem;}
+  .section-sub{font-size:.8rem;color:var(--muted);margin:0 0 1rem;}
+  .section-badge{font-size:.65rem;font-weight:700;letter-spacing:.06em;padding:.2rem .55rem;border-radius:20px;background:#f0f4ff;color:#3b5bdb;}
+
+  /* Risk table */
+  .risk-table{width:100%;border-collapse:collapse;font-size:.85rem;}
+  .risk-table th{background:var(--ink);color:#fff;padding:.55rem .8rem;text-align:left;font-size:.75rem;letter-spacing:.04em;}
+  .risk-table td{padding:.5rem .8rem;border-bottom:1px solid var(--border);vertical-align:middle;}
+  .risk-table tr:last-child td{border-bottom:none;}
+  .risk-table tr:nth-child(even) td{background:#fafafa;}
+  select.inline{font-size:.82rem;padding:.25rem .5rem;border:1px solid var(--border);border-radius:6px;background:var(--panel);color:var(--ink);}
+  input.inline{font-size:.82rem;padding:.25rem .5rem;border:1px solid var(--border);border-radius:6px;background:var(--panel);color:var(--ink);width:100%;}
+  .save-row{text-align:right;margin-top:.7rem;}
+  .btn-sm{padding:.35rem .9rem;font-size:.78rem;border-radius:8px;cursor:pointer;border:none;font-weight:600;}
+  .btn-primary{background:var(--ink);color:#fff;}
+  .btn-primary:hover{opacity:.85;}
+  .btn-danger{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;}
+  .btn-danger:hover{background:#fca5a5;}
+  .btn-ghost{background:var(--panel-soft);color:var(--ink);border:1px solid var(--border);}
+  .btn-ghost:hover{border-color:var(--yellow);}
+
+  /* Risk badge */
+  .rb-High{background:#fee2e2;color:#991b1b;padding:.15rem .5rem;border-radius:20px;font-size:.72rem;font-weight:700;}
+  .rb-Moderate{background:#fefce8;color:#854d0e;padding:.15rem .5rem;border-radius:20px;font-size:.72rem;font-weight:700;}
+  .rb-Low{background:#f0fdf4;color:#166534;padding:.15rem .5rem;border-radius:20px;font-size:.72rem;font-weight:700;}
+
+  /* Systems table */
+  .data-table{width:100%;border-collapse:collapse;font-size:.83rem;}
+  .data-table th{background:#1a1a2e;color:#ffe600;padding:.5rem .75rem;text-align:left;font-size:.74rem;letter-spacing:.04em;}
+  .data-table td{padding:.45rem .75rem;border-bottom:1px solid var(--border);vertical-align:middle;}
+  .data-table tr:last-child td{border-bottom:none;}
+  .data-table tr:hover td{background:#fafafa;}
+  .pill-scope{background:#f0fdf4;color:#166534;padding:.1rem .45rem;border-radius:20px;font-size:.7rem;font-weight:700;}
+  .pill-no{background:#fee2e2;color:#991b1b;padding:.1rem .45rem;border-radius:20px;font-size:.7rem;font-weight:700;}
+
+  /* Domain cards */
+  .domain-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.9rem;}
+  @media(max-width:640px){.domain-grid{grid-template-columns:1fr;}}
+  .domain-card{background:var(--panel-soft);border:1px solid var(--border);border-radius:12px;padding:1rem 1.2rem;border-left:4px solid var(--border);}
+  .domain-card.effective{border-left-color:#16a34a;}
+  .domain-card.deficient{border-left-color:#dc2626;}
+  .domain-card.checklist{border-left-color:#f59e0b;}
+  .domain-name{font-weight:700;font-size:.92rem;color:var(--ink);margin-bottom:.25rem;}
+  .domain-controls{font-size:.75rem;color:var(--muted);margin-bottom:.4rem;}
+  .domain-conclusion{font-size:.8rem;font-weight:600;}
+  .dc-effective{color:#16a34a;}
+  .dc-deficient{color:#dc2626;}
+  .dc-checklist{color:#f59e0b;}
+
+  /* Add form */
+  .add-form{background:var(--panel-soft);border:1px solid var(--border);border-radius:10px;padding:1rem 1.1rem;margin-top:.8rem;display:none;}
+  .add-form.open{display:block;}
+  .form-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.5rem;margin-bottom:.5rem;}
+  .form-row label{font-size:.75rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.2rem;}
+  .form-row input,.form-row select,.form-row textarea{width:100%;padding:.35rem .5rem;font-size:.82rem;border:1px solid var(--border);border-radius:7px;background:var(--panel);color:var(--ink);}
+  .form-row textarea{resize:vertical;min-height:52px;}
+
+  /* Rollforward */
+  .rf-grid{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;}
+  @media(max-width:600px){.rf-grid{grid-template-columns:1fr;}}
+
+  /* Overall risk banner */
+  .risk-banner{display:flex;align-items:center;gap:1rem;padding:.7rem 1rem;border-radius:10px;margin-bottom:1rem;font-size:.9rem;font-weight:600;}
+  .risk-banner.High{background:#fee2e2;color:#991b1b;}
+  .risk-banner.Moderate{background:#fefce8;color:#854d0e;}
+  .risk-banner.Low{background:#f0fdf4;color:#166534;}
+  .risk-banner .ri-label{font-size:.72rem;font-weight:700;letter-spacing:.06em;opacity:.7;}
+
+  .empty-state{text-align:center;padding:2rem;color:var(--muted);font-size:.85rem;}
+  .tag-chip{background:#f0f4ff;color:#3b5bdb;padding:.1rem .45rem;border-radius:20px;font-size:.7rem;font-weight:600;margin-right:.2rem;}
+  .toast{position:fixed;bottom:1.5rem;right:1.5rem;background:#1a1a2e;color:#fff;padding:.6rem 1.2rem;border-radius:10px;font-size:.82rem;z-index:99;display:none;}
+</style>
+</head>
+<body>
+<div id="nav"></div>
+<main class="container">
+
+  <div class="page-hero">
+    <div class="hero-label">EY Global Audit Methodology</div>
+    <h1 class="hero-title">GITC Testing — GAM</h1>
+    <p class="hero-sub">IT Risk Assessment · Relevant Systems · Domain Overview · IPE/ITOR · Rollforward · Application Controls</p>
+  </div>
+
+  <!-- Section 1: IT Risk Assessment -->
+  <div class="section-card">
+    <div class="section-title">
+      <span>1 · IT Risk Assessment</span>
+      <span class="section-badge">GAM Required</span>
+    </div>
+    <p class="section-sub">Assess each risk factor before setting the GITC testing depth. Overall risk drives the scope and sample sizes.</p>
+    <div id="riskBanner" class="risk-banner Moderate"><div><div class="ri-label">OVERALL IT RISK</div><span id="riskLevel">Moderate</span></div></div>
+    <table class="risk-table">
+      <thead><tr><th>Risk factor</th><th>Assessment</th><th>Implication</th><th>Auditor notes</th><th></th></tr></thead>
+      <tbody id="riskBody"></tbody>
+    </table>
+  </div>
+
+  <!-- Section 2: Relevant IT Systems -->
+  <div class="section-card">
+    <div class="section-title">2 · Relevant IT Systems Register</div>
+    <p class="section-sub">Document every in-scope IT system, the financial processes it supports, and which GITC domains apply.</p>
+    <div style="text-align:right;margin-bottom:.6rem;">
+      <button class="btn-sm btn-primary" onclick="toggleForm('sysForm')">+ Add system</button>
+    </div>
+    <div class="add-form" id="sysForm">
+      <div class="form-row">
+        <div><label>System name</label><input id="sysName" placeholder="e.g. SAP ERP"></div>
+        <div><label>Type</label><select id="sysType"><option>ERP</option><option>HRIS</option><option>TMS</option><option>ITSM</option><option>Reporting</option><option>Other</option></select></div>
+        <div><label>Financial process</label><input id="sysProcess" placeholder="GL / AP / Payroll…"></div>
+        <div><label>Hosting</label><select id="sysHosting"><option>On-premise</option><option>Cloud (SaaS)</option><option>Hybrid</option></select></div>
+      </div>
+      <div class="form-row">
+        <div><label>GITC domains</label><input id="sysDomains" placeholder="Access · Change · Operations"></div>
+        <div><label>CUECs required?</label><select id="sysCuecs"><option value="">No</option><option>Yes — SOC 1</option><option>Yes — SOC 2</option><option>Yes — Bridge letter</option></select></div>
+        <div style="grid-column:span 2"><label>Notes</label><input id="sysNotes" placeholder="Any additional context"></div>
+      </div>
+      <div style="text-align:right;display:flex;gap:.5rem;justify-content:flex-end">
+        <button class="btn-sm btn-ghost" onclick="toggleForm('sysForm')">Cancel</button>
+        <button class="btn-sm btn-primary" onclick="addSystem()">Save system</button>
+      </div>
+    </div>
+    <table class="data-table" id="sysTable">
+      <thead><tr><th>System</th><th>Type</th><th>Process</th><th>Hosting</th><th>Scope</th><th>GITC domains</th><th>CUECs</th><th></th></tr></thead>
+      <tbody id="sysBody"><tr><td colspan="8" class="empty-state">Loading…</td></tr></tbody>
+    </table>
+  </div>
+
+  <!-- Section 3: GITC Domain Overview -->
+  <div class="section-card">
+    <div class="section-title">3 · GITC Domain Overview <span class="section-badge">Live from CCM</span></div>
+    <p class="section-sub">GAM organises GITCs into four domains. Status is auto-populated from the CCM monitor results.</p>
+    <div class="domain-grid" id="domainGrid"><div class="empty-state">Loading…</div></div>
+  </div>
+
+  <!-- Section 4: IPE/ITOR Register -->
+  <div class="section-card">
+    <div class="section-title">4 · IPE / ITOR Register <span class="section-badge">GAM Required</span></div>
+    <p class="section-sub">Document Information Produced by the Entity (IPE) and IT-Dependent Operational Reports (ITOR) used in financial controls. Completeness and accuracy of each must be tested.</p>
+    <div style="text-align:right;margin-bottom:.6rem;">
+      <button class="btn-sm btn-primary" onclick="toggleForm('ipeForm')">+ Add IPE / ITOR</button>
+    </div>
+    <div class="add-form" id="ipeForm">
+      <div class="form-row">
+        <div><label>Report / data name</label><input id="ipeName" placeholder="e.g. Aged debtors report"></div>
+        <div><label>Source system</label><input id="ipeSystem" placeholder="e.g. SAP ERP"></div>
+        <div><label>Control it supports</label><input id="ipeControl" placeholder="e.g. Bad debt provision review"></div>
+      </div>
+      <div class="form-row">
+        <div><label>Completeness tested</label><select id="ipeComp"><option value="1">Yes</option><option value="0">No</option></select></div>
+        <div><label>Accuracy tested</label><select id="ipeAcc"><option value="1">Yes</option><option value="0">No</option></select></div>
+        <div><label>Tested by</label><input id="ipeBy" placeholder="Name"></div>
+        <div><label>Test date</label><input type="date" id="ipeDate"></div>
+      </div>
+      <div class="form-row">
+        <div style="grid-column:span 4"><label>Notes</label><input id="ipeNotes" placeholder="How completeness/accuracy was established"></div>
+      </div>
+      <div style="text-align:right;display:flex;gap:.5rem;justify-content:flex-end">
+        <button class="btn-sm btn-ghost" onclick="toggleForm('ipeForm')">Cancel</button>
+        <button class="btn-sm btn-primary" onclick="addIpe()">Save</button>
+      </div>
+    </div>
+    <table class="data-table" id="ipeTable">
+      <thead><tr><th>Report / data</th><th>System</th><th>Control supported</th><th>Completeness</th><th>Accuracy</th><th>Tested by</th><th>Date</th><th></th></tr></thead>
+      <tbody id="ipeBody"><tr><td colspan="8" class="empty-state">Loading…</td></tr></tbody>
+    </table>
+  </div>
+
+  <!-- Section 5: Rollforward Procedures -->
+  <div class="section-card">
+    <div class="section-title">5 · Rollforward Procedures <span class="section-badge">GAM Required</span></div>
+    <p class="section-sub">If testing was performed at an interim date, document procedures to extend conclusions to year-end for each GITC domain.</p>
+    <div id="rfGrid" class="rf-grid"></div>
+  </div>
+
+  <!-- Section 6: Application Controls Register -->
+  <div class="section-card">
+    <div class="section-title">6 · Application Controls Register</div>
+    <p class="section-sub">GAM distinguishes GITCs from application controls embedded in the software (e.g. duplicate invoice prevention, field validation). GITC failures put these at risk.</p>
+    <div style="text-align:right;margin-bottom:.6rem;">
+      <button class="btn-sm btn-primary" onclick="toggleForm('acForm')">+ Add application control</button>
+    </div>
+    <div class="add-form" id="acForm">
+      <div class="form-row">
+        <div><label>Control name</label><input id="acName" placeholder="e.g. Duplicate invoice check"></div>
+        <div><label>Application</label><input id="acApp" placeholder="e.g. SAP ERP"></div>
+        <div><label>Control type</label><select id="acType"><option>Input validation</option><option>Processing</option><option>Output</option><option>Interface</option></select></div>
+        <div><label>GITC dependent</label><select id="acGitc"><option value="1">Yes</option><option value="0">No</option></select></div>
+      </div>
+      <div class="form-row">
+        <div style="grid-column:span 4"><label>Notes</label><input id="acNotes" placeholder="Describe the control and its GITC dependency"></div>
+      </div>
+      <div style="text-align:right;display:flex;gap:.5rem;justify-content:flex-end">
+        <button class="btn-sm btn-ghost" onclick="toggleForm('acForm')">Cancel</button>
+        <button class="btn-sm btn-primary" onclick="addAc()">Save</button>
+      </div>
+    </div>
+    <table class="data-table" id="acTable">
+      <thead><tr><th>Control</th><th>Application</th><th>Type</th><th>GITC dependent</th><th>Notes</th><th></th></tr></thead>
+      <tbody id="acBody"><tr><td colspan="6" class="empty-state">Loading…</td></tr></tbody>
+    </table>
+  </div>
+
+</main>
+<div class="toast" id="toast"></div>
+
+<script src="/static/js/common.js"></script>
+<script>
+document.getElementById("nav").innerHTML = navBar("gam");
+loadMe();
+
+// ── helpers ───────────────────────────────────────────────────────────────
+function toast(msg){ const t=document.getElementById("toast"); t.textContent=msg; t.style.display="block"; setTimeout(()=>{t.style.display="none"},2400); }
+function toggleForm(id){ document.getElementById(id).classList.toggle("open"); }
+function yn(v){ return v ? '<span class="pill-scope">Yes</span>' : '<span class="pill-no">No</span>'; }
+
+// ── Risk Assessment ───────────────────────────────────────────────────────
+async function loadRisk(){
+  const d = await API.get("gam/risk-assessment");
+  document.getElementById("riskLevel").textContent = d.overall_risk;
+  const b = document.getElementById("riskBanner");
+  b.className = `risk-banner ${d.overall_risk}`;
+  const tbody = document.getElementById("riskBody");
+  tbody.innerHTML = d.factors.map(f => `
+    <tr data-factor="${f.factor}">
+      <td><strong>${f.factor}</strong></td>
+      <td>
+        <select class="inline" onchange="saveRisk(this)" data-factor="${f.factor}">
+          ${["Low","Moderate","High"].map(o=>`<option${f.assessment===o?" selected":""}>${o}</option>`).join("")}
+        </select>
+      </td>
+      <td><input class="inline" value="${f.implication}" placeholder="Implication" data-field="impl" style="width:100%"></td>
+      <td><input class="inline" value="${f.notes}" placeholder="Notes" data-field="notes" style="width:100%"></td>
+      <td><button class="btn-sm btn-primary" onclick="saveRiskRow(this,'${f.factor}')">Save</button></td>
+    </tr>`).join("");
+}
+async function saveRisk(sel){
+  const factor = sel.dataset.factor;
+  await saveRiskRow(sel.closest("tr").querySelector("button"), factor);
+}
+async function saveRiskRow(btn, factor){
+  const row = btn.closest("tr");
+  const assessment = row.querySelector("select").value;
+  const impl  = row.querySelectorAll("input")[0].value;
+  const notes = row.querySelectorAll("input")[1].value;
+  await API.post("gam/risk-assessment", {factor, assessment, implication: impl, notes});
+  toast("Risk factor saved"); loadRisk();
+}
+
+// ── Systems ───────────────────────────────────────────────────────────────
+async function loadSystems(){
+  const rows = await API.get("gam/systems");
+  const tbody = document.getElementById("sysBody");
+  if(!rows.length){ tbody.innerHTML='<tr><td colspan="8" class="empty-state">No systems added yet — click + Add system</td></tr>'; return; }
+  tbody.innerHTML = rows.map(r=>`
+    <tr>
+      <td><strong>${r.name}</strong></td>
+      <td>${r.type}</td>
+      <td>${r.process}</td>
+      <td>${r.hosting}</td>
+      <td>${r.in_scope ? '<span class="pill-scope">In scope</span>' : '<span class="pill-no">Out</span>'}</td>
+      <td>${(r.domains||"").split("·").map(d=>`<span class="tag-chip">${d.trim()}</span>`).join(" ")}</td>
+      <td>${r.cuecs||"No"}</td>
+      <td><button class="btn-sm btn-danger" onclick="deleteSys(${r.id})">✕</button></td>
+    </tr>`).join("");
+}
+async function addSystem(){
+  const body = {
+    name: document.getElementById("sysName").value.trim(),
+    type: document.getElementById("sysType").value,
+    process: document.getElementById("sysProcess").value.trim(),
+    hosting: document.getElementById("sysHosting").value,
+    in_scope: true,
+    domains: document.getElementById("sysDomains").value.trim(),
+    cuecs: document.getElementById("sysCuecs").value,
+    notes: document.getElementById("sysNotes").value.trim(),
+  };
+  if(!body.name){ toast("System name is required"); return; }
+  await API.post("gam/systems", body);
+  toast("System added"); toggleForm("sysForm"); loadSystems();
+}
+async function deleteSys(id){ if(!confirm("Remove this system?")) return; await fetch(`/api/gam/systems/${id}`,{method:"DELETE",credentials:"include"}); loadSystems(); }
+
+// ── Domain Overview ───────────────────────────────────────────────────────
+async function loadDomains(){
+  const domains = await API.get("gam/domains");
+  document.getElementById("domainGrid").innerHTML = domains.map(d=>{
+    const cls = d.conclusion==="Effective" ? "effective" : d.conclusion.includes("Not") ? "checklist" : "deficient";
+    const dc  = cls==="effective" ? "dc-effective" : cls==="checklist" ? "dc-checklist" : "dc-deficient";
+    return `<div class="domain-card ${cls}">
+      <div class="domain-name">${d.domain}</div>
+      <div class="domain-controls">Controls: ${d.tested}</div>
+      ${d.open_exceptions!=null ? `<div style="font-size:.78rem;color:var(--muted);margin-bottom:.3rem;">${d.open_exceptions} open exception${d.open_exceptions!==1?"s":""}</div>` : ""}
+      <div class="domain-conclusion ${dc}">● ${d.conclusion}</div>
+    </div>`;
+  }).join("");
+}
+
+// ── IPE/ITOR ──────────────────────────────────────────────────────────────
+async function loadIpe(){
+  const rows = await API.get("gam/ipeitor");
+  const tbody = document.getElementById("ipeBody");
+  if(!rows.length){ tbody.innerHTML='<tr><td colspan="8" class="empty-state">No IPE/ITOR items added yet</td></tr>'; return; }
+  tbody.innerHTML = rows.map(r=>`
+    <tr>
+      <td><strong>${r.name}</strong></td>
+      <td>${r.system}</td>
+      <td>${r.control_supported}</td>
+      <td>${yn(r.completeness_tested)}</td>
+      <td>${yn(r.accuracy_tested)}</td>
+      <td>${r.tested_by||"—"}</td>
+      <td>${r.test_date||"—"}</td>
+      <td><button class="btn-sm btn-danger" onclick="deleteIpe(${r.id})">✕</button></td>
+    </tr>`).join("");
+}
+async function addIpe(){
+  const body = {
+    name: document.getElementById("ipeName").value.trim(),
+    system: document.getElementById("ipeSystem").value.trim(),
+    control_supported: document.getElementById("ipeControl").value.trim(),
+    completeness_tested: document.getElementById("ipeComp").value==="1",
+    accuracy_tested: document.getElementById("ipeAcc").value==="1",
+    tested_by: document.getElementById("ipeBy").value.trim(),
+    test_date: document.getElementById("ipeDate").value,
+    notes: document.getElementById("ipeNotes").value.trim(),
+  };
+  if(!body.name){ toast("Report name is required"); return; }
+  await API.post("gam/ipeitor", body);
+  toast("IPE/ITOR item saved"); toggleForm("ipeForm"); loadIpe();
+}
+async function deleteIpe(id){ await fetch(`/api/gam/ipeitor/${id}`,{method:"DELETE",credentials:"include"}); loadIpe(); }
+
+// ── Rollforward ───────────────────────────────────────────────────────────
+const RF_CONTROLS = ["SoD","Change","Recert","JML"];
+let rfData = {};
+async function loadRollforward(){
+  const rows = await API.get("gam/rollforward");
+  rows.forEach(r=>{ rfData[r.control]=r; });
+  document.getElementById("rfGrid").innerHTML = RF_CONTROLS.map(ctrl=>{
+    const r = rfData[ctrl] || {};
+    return `<div class="section-card" style="margin:0">
+      <div style="font-weight:700;font-size:.9rem;margin-bottom:.7rem;color:var(--ink)">${ctrl}</div>
+      <div class="form-row" style="grid-template-columns:1fr 1fr">
+        <div><label>Interim test date</label><input type="date" id="rf_interim_${ctrl}" value="${r.interim_date||""}"></div>
+        <div><label>Year-end date</label><input type="date" id="rf_ye_${ctrl}" value="${r.yearend_date||""}"></div>
+      </div>
+      <div class="form-row" style="grid-template-columns:1fr">
+        <div><label>IT changes in rollforward period</label><input id="rf_changes_${ctrl}" value="${r.changes||""}" placeholder="None / describe changes"></div>
+      </div>
+      <div class="form-row" style="grid-template-columns:1fr">
+        <div><label>Procedures performed</label><textarea id="rf_proc_${ctrl}" style="width:100%;padding:.35rem;font-size:.82rem;border:1px solid var(--border);border-radius:7px;resize:vertical;min-height:52px">${r.procedures||""}</textarea></div>
+      </div>
+      <div class="form-row" style="grid-template-columns:1fr 1fr">
+        <div><label>Conclusion</label><select id="rf_conc_${ctrl}" style="width:100%;padding:.35rem;font-size:.82rem;border:1px solid var(--border);border-radius:7px">
+          ${["","Full reliance maintained","Partial reliance","No reliance — re-test required"].map(o=>`<option${r.conclusion===o?" selected":""}>${o}</option>`).join("")}
+        </select></div>
+        <div><label>Performed by</label><input id="rf_by_${ctrl}" value="${r.performed_by||""}" placeholder="Name"></div>
+      </div>
+      <div style="text-align:right;margin-top:.4rem">
+        <button class="btn-sm btn-primary" onclick="saveRf('${ctrl}')">Save rollforward</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+async function saveRf(ctrl){
+  const body = {
+    control: ctrl,
+    interim_date: document.getElementById(`rf_interim_${ctrl}`).value,
+    yearend_date: document.getElementById(`rf_ye_${ctrl}`).value,
+    changes: document.getElementById(`rf_changes_${ctrl}`).value,
+    procedures: document.getElementById(`rf_proc_${ctrl}`).value,
+    conclusion: document.getElementById(`rf_conc_${ctrl}`).value,
+    performed_by: document.getElementById(`rf_by_${ctrl}`).value,
+  };
+  await API.post("gam/rollforward", body);
+  toast(`Rollforward saved for ${ctrl}`);
+}
+
+// ── Application Controls ──────────────────────────────────────────────────
+async function loadAc(){
+  const rows = await API.get("gam/app-controls");
+  const tbody = document.getElementById("acBody");
+  if(!rows.length){ tbody.innerHTML='<tr><td colspan="6" class="empty-state">No application controls added yet</td></tr>'; return; }
+  tbody.innerHTML = rows.map(r=>`
+    <tr>
+      <td><strong>${r.name}</strong></td>
+      <td>${r.application}</td>
+      <td>${r.control_type}</td>
+      <td>${yn(r.gitc_dependent)}</td>
+      <td>${r.notes||"—"}</td>
+      <td><button class="btn-sm btn-danger" onclick="deleteAc(${r.id})">✕</button></td>
+    </tr>`).join("");
+}
+async function addAc(){
+  const body = {
+    name: document.getElementById("acName").value.trim(),
+    application: document.getElementById("acApp").value.trim(),
+    control_type: document.getElementById("acType").value,
+    gitc_dependent: document.getElementById("acGitc").value==="1",
+    notes: document.getElementById("acNotes").value.trim(),
+  };
+  if(!body.name){ toast("Control name is required"); return; }
+  await API.post("gam/app-controls", body);
+  toast("Application control added"); toggleForm("acForm"); loadAc();
+}
+async function deleteAc(id){ await fetch(`/api/gam/app-controls/${id}`,{method:"DELETE",credentials:"include"}); loadAc(); }
+
+// ── Boot ──────────────────────────────────────────────────────────────────
+(async()=>{
+  await loadMe();
+  await Promise.all([loadRisk(), loadSystems(), loadDomains(), loadIpe(), loadRollforward(), loadAc()]);
+})();
+</script>
+</body>
+</html>

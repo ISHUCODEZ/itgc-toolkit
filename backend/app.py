@@ -17,7 +17,7 @@ from flask import (Flask, jsonify, request, session, send_from_directory,
                    send_file, Response)
 from flask_cors import CORS
 
-from services import sod, change_audit, recert, framework_map, db, ccm, reporting, jml
+from services import sod, change_audit, recert, framework_map, db, ccm, reporting, jml, gam, fait
 
 FRONTEND = os.path.join(os.path.dirname(__file__), "..", "frontend")
 app = Flask(__name__, static_folder=None)
@@ -359,6 +359,293 @@ def api_report_pdf():
     db.log(user, "report_export", "PDF report")
     fname = f"ITGC_CCM_Report_{time.strftime('%Y%m%d')}.pdf"
     return send_file(buf, as_attachment=True, download_name=fname, mimetype="application/pdf")
+
+
+@app.get("/api/report/gam/pdf")
+@require_role("viewer")
+def api_report_gam_pdf():
+    if not ccm.has_history():
+        return jsonify({"error": "no monitoring runs yet — run controls first"}), 400
+    user = current_user()["username"]
+    buf = reporting.build_gam_pdf(generated_by=user)
+    db.log(user, "report_export", "GAM GITC Summary Memo PDF")
+    fname = f"GITC_Summary_Memo_{time.strftime('%Y%m%d')}.pdf"
+    return send_file(buf, as_attachment=True, download_name=fname, mimetype="application/pdf")
+
+
+@app.get("/api/report/gam/xlsx")
+@require_role("viewer")
+def api_report_gam_xlsx():
+    if not ccm.has_history():
+        return jsonify({"error": "no monitoring runs yet — run controls first"}), 400
+    user = current_user()["username"]
+    buf = reporting.build_gam_workpaper(generated_by=user)
+    db.log(user, "report_export", "GAM GITC Workpaper XLSX")
+    fname = f"GITC_Workpaper_{time.strftime('%Y%m%d')}.xlsx"
+    return send_file(buf, as_attachment=True, download_name=fname,
+                     mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
+@app.get("/api/report/fait/pdf")
+@require_role("viewer")
+def api_report_fait_pdf():
+    if not ccm.has_history():
+        return jsonify({"error": "no monitoring runs yet — run controls first"}), 400
+    user = current_user()["username"]
+    buf = reporting.build_fait_pdf(generated_by=user)
+    db.log(user, "report_export", "FAIT Management Letter PDF")
+    fname = f"FAIT_Management_Letter_{time.strftime('%Y%m%d')}.pdf"
+    return send_file(buf, as_attachment=True, download_name=fname, mimetype="application/pdf")
+
+
+@app.get("/api/report/fait/xlsx")
+@require_role("viewer")
+def api_report_fait_xlsx():
+    if not ccm.has_history():
+        return jsonify({"error": "no monitoring runs yet — run controls first"}), 400
+    user = current_user()["username"]
+    buf = reporting.build_fait_workpaper(generated_by=user)
+    db.log(user, "report_export", "FAIT Workpaper XLSX")
+    fname = f"FAIT_Workpaper_{time.strftime('%Y%m%d')}.xlsx"
+    return send_file(buf, as_attachment=True, download_name=fname,
+                     mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
+# =========================================================================== #
+#  GAM — Global Audit Methodology routes
+# =========================================================================== #
+@app.get("/api/gam/risk-assessment")
+@require_role("viewer")
+def api_gam_risk():
+    return jsonify({
+        "factors": gam.risk_assessment(),
+        "overall_risk": gam.overall_risk(),
+    })
+
+
+@app.post("/api/gam/risk-assessment")
+@require_role("auditor")
+def api_gam_risk_save():
+    b = request.get_json(silent=True) or {}
+    row = gam.save_risk_factor(b.get("factor",""), b.get("assessment","Moderate"),
+                               b.get("implication",""), b.get("notes",""))
+    db.log(current_user()["username"], "gam_risk_save", b.get("factor",""))
+    return jsonify(row)
+
+
+@app.get("/api/gam/systems")
+@require_role("viewer")
+def api_gam_systems():
+    return jsonify(gam.systems_list())
+
+
+@app.post("/api/gam/systems")
+@require_role("auditor")
+def api_gam_systems_add():
+    b = request.get_json(silent=True) or {}
+    row = gam.add_system(b.get("name",""), b.get("type",""), b.get("process",""),
+                         b.get("hosting",""), b.get("in_scope", True),
+                         b.get("domains",""), b.get("cuecs",""), b.get("notes",""))
+    db.log(current_user()["username"], "gam_system_add", row["name"])
+    return jsonify(row)
+
+
+@app.put("/api/gam/systems/<int:sid>")
+@require_role("auditor")
+def api_gam_systems_update(sid):
+    b = request.get_json(silent=True) or {}
+    row = gam.update_system(sid, **b)
+    return jsonify(row or {"error": "not found"}), (200 if row else 404)
+
+
+@app.delete("/api/gam/systems/<int:sid>")
+@require_role("auditor")
+def api_gam_systems_delete(sid):
+    gam.delete_system(sid)
+    db.log(current_user()["username"], "gam_system_delete", str(sid))
+    return jsonify({"ok": True})
+
+
+@app.get("/api/gam/domains")
+@require_role("viewer")
+def api_gam_domains():
+    return jsonify(gam.domain_overview())
+
+
+@app.get("/api/gam/ipeitor")
+@require_role("viewer")
+def api_gam_ipeitor():
+    return jsonify(gam.ipeitor_list())
+
+
+@app.post("/api/gam/ipeitor")
+@require_role("auditor")
+def api_gam_ipeitor_add():
+    b = request.get_json(silent=True) or {}
+    row = gam.add_ipeitor(b.get("name",""), b.get("system",""),
+                          b.get("control_supported",""),
+                          b.get("completeness_tested", False),
+                          b.get("accuracy_tested", False),
+                          b.get("tested_by",""), b.get("test_date",""), b.get("notes",""))
+    db.log(current_user()["username"], "gam_ipeitor_add", row["name"])
+    return jsonify(row)
+
+
+@app.delete("/api/gam/ipeitor/<int:iid>")
+@require_role("auditor")
+def api_gam_ipeitor_delete(iid):
+    gam.delete_ipeitor(iid)
+    return jsonify({"ok": True})
+
+
+@app.get("/api/gam/rollforward")
+@require_role("viewer")
+def api_gam_rollforward():
+    return jsonify(gam.rollforward_list())
+
+
+@app.post("/api/gam/rollforward")
+@require_role("auditor")
+def api_gam_rollforward_save():
+    b = request.get_json(silent=True) or {}
+    row = gam.save_rollforward(b.get("control",""), b.get("interim_date",""),
+                               b.get("yearend_date",""), b.get("changes",""),
+                               b.get("procedures",""), b.get("conclusion",""),
+                               b.get("performed_by",""))
+    db.log(current_user()["username"], "gam_rollforward_save", b.get("control",""))
+    return jsonify(row)
+
+
+@app.get("/api/gam/app-controls")
+@require_role("viewer")
+def api_gam_appcontrols():
+    return jsonify(gam.app_controls_list())
+
+
+@app.post("/api/gam/app-controls")
+@require_role("auditor")
+def api_gam_appcontrols_add():
+    b = request.get_json(silent=True) or {}
+    row = gam.add_app_control(b.get("name",""), b.get("application",""),
+                              b.get("control_type",""), b.get("gitc_dependent", True),
+                              b.get("notes",""))
+    db.log(current_user()["username"], "gam_appcontrol_add", row["name"])
+    return jsonify(row)
+
+
+@app.delete("/api/gam/app-controls/<int:aid>")
+@require_role("auditor")
+def api_gam_appcontrols_delete(aid):
+    gam.delete_app_control(aid)
+    return jsonify({"ok": True})
+
+
+# =========================================================================== #
+#  FAIT — Financial Audit IT routes
+# =========================================================================== #
+@app.get("/api/fait/deficiencies")
+@require_role("viewer")
+def api_fait_deficiencies():
+    return jsonify(fait.deficiency_summary())
+
+
+@app.post("/api/fait/exceptions/<fingerprint>/override")
+@require_role("auditor")
+def api_fait_exc_override(fingerprint):
+    b = request.get_json(silent=True) or {}
+    row = fait.save_exception_override(fingerprint, **b)
+    db.log(current_user()["username"], "fait_exc_override", fingerprint[:8])
+    return jsonify(row)
+
+
+@app.get("/api/fait/racm")
+@require_role("viewer")
+def api_fait_racm():
+    return jsonify(fait.racm_list())
+
+
+@app.post("/api/fait/racm")
+@require_role("auditor")
+def api_fait_racm_add():
+    b = request.get_json(silent=True) or {}
+    row = fait.add_racm(b.get("control_ref",""), b.get("domain",""),
+                        b.get("objective",""), b.get("risk",""),
+                        b.get("assertion",""), b.get("approach",""),
+                        b.get("population",""), b.get("conclusion",""))
+    db.log(current_user()["username"], "fait_racm_add", row["control_ref"])
+    return jsonify(row)
+
+
+@app.put("/api/fait/racm/<int:rid>")
+@require_role("auditor")
+def api_fait_racm_update(rid):
+    b = request.get_json(silent=True) or {}
+    row = fait.update_racm(rid, **b)
+    return jsonify(row or {"error": "not found"}), (200 if row else 404)
+
+
+@app.delete("/api/fait/racm/<int:rid>")
+@require_role("auditor")
+def api_fait_racm_delete(rid):
+    fait.delete_racm(rid)
+    return jsonify({"ok": True})
+
+
+@app.get("/api/fait/walkthroughs")
+@require_role("viewer")
+def api_fait_walkthroughs():
+    return jsonify(fait.walkthroughs_list())
+
+
+@app.post("/api/fait/walkthroughs")
+@require_role("auditor")
+def api_fait_walkthroughs_save():
+    b = request.get_json(silent=True) or {}
+    row = fait.save_walkthrough(b.get("control",""), b.get("description",""),
+                                b.get("evidence",""), b.get("design_ok", True),
+                                b.get("conclusion",""), b.get("performed_by",""),
+                                b.get("walkthrough_date",""))
+    db.log(current_user()["username"], "fait_walkthrough_save", b.get("control",""))
+    return jsonify(row)
+
+
+@app.get("/api/fait/prior-year")
+@require_role("viewer")
+def api_fait_prior_year():
+    return jsonify(fait.prior_year_list())
+
+
+@app.post("/api/fait/prior-year")
+@require_role("auditor")
+def api_fait_prior_year_add():
+    b = request.get_json(silent=True) or {}
+    row = fait.add_prior_year(b.get("finding",""), b.get("control",""),
+                              b.get("classification","Control Deficiency"),
+                              b.get("prior_status","Open"), b.get("current_status","Open"),
+                              b.get("repeat", True), b.get("notes",""))
+    db.log(current_user()["username"], "fait_prior_year_add", row["finding"])
+    return jsonify(row)
+
+
+@app.put("/api/fait/prior-year/<int:pid>")
+@require_role("auditor")
+def api_fait_prior_year_update(pid):
+    b = request.get_json(silent=True) or {}
+    row = fait.update_prior_year(pid, **b)
+    return jsonify(row or {"error": "not found"}), (200 if row else 404)
+
+
+@app.delete("/api/fait/prior-year/<int:pid>")
+@require_role("auditor")
+def api_fait_prior_year_delete(pid):
+    fait.delete_prior_year(pid)
+    return jsonify({"ok": True})
+
+
+@app.get("/api/fait/prog-dev")
+@require_role("viewer")
+def api_fait_prog_dev():
+    return jsonify(fait.prog_dev_checklist())
 
 
 # ---------- static frontend ----------
