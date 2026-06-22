@@ -12,18 +12,19 @@ action is written to an activity audit trail — the toolkit practises the
 controls it tests.
 """
 from __future__ import annotations
-import csv, io, functools, os
+import csv, io, functools, os, time
 from flask import (Flask, jsonify, request, session, send_from_directory,
                    send_file, Response)
 from flask_cors import CORS
 
-from services import sod, change_audit, recert, framework_map, db
+from services import sod, change_audit, recert, framework_map, db, ccm, reporting
 
 FRONTEND = os.path.join(os.path.dirname(__file__), "..", "frontend")
 app = Flask(__name__, static_folder=None)
 app.secret_key = os.environ.get("ITGC_SECRET", "itgc-demo-secret-key-change-me")
 CORS(app, supports_credentials=True)
 db.init()
+ccm.seed_default_thresholds()
 
 # ---- users / roles ----
 USERS = {
@@ -152,6 +153,122 @@ def api_activity():
     return jsonify(db.recent_activity())
 
 
+# ---------- Continuous Controls Monitoring (CCM) ----------
+@app.post("/api/ccm/run")
+@require_role("auditor")
+def api_ccm_run():
+    """Manual 'Run now' — sweep all four controls and store a snapshot."""
+    user = current_user()["username"]
+    summary = ccm.run_all_controls(triggered_by=user)
+    db.log(user, "ccm_run", f"run #{summary['run_id']}: "
+           f"{summary['delta']['new']} new, {summary['delta']['resolved']} resolved, "
+           f"{summary.get('alerts_raised', 0)} alerts")
+    return jsonify(summary)
+
+
+@app.get("/api/ccm/dashboard")
+@require_role("viewer")
+def api_ccm_dashboard():
+    has = ccm.has_history()
+    return jsonify({
+        "has_history": has,
+        "opinion": ccm.reliance_opinion() if has else None,
+        "kpis": ccm.kpis(),
+        "trend": ccm.trend(limit=30),
+        "recent_runs": ccm.recent_runs(limit=12),
+        "alerts": ccm.alerts_list(limit=20),
+    })
+
+
+@app.get("/api/ccm/exceptions")
+@require_role("viewer")
+def api_ccm_exceptions():
+    status = request.args.get("status", "open")
+    control = request.args.get("control") or None
+    return jsonify(ccm.exceptions_list(status=status, control=control))
+
+
+@app.post("/api/ccm/exceptions/<fingerprint>")
+@require_role("auditor")
+def api_ccm_update_exception(fingerprint):
+    b = request.get_json(silent=True) or {}
+    updated = ccm.update_exception(fingerprint, status=b.get("status"),
+                                   owner=b.get("owner"), note=b.get("note"))
+    if not updated:
+        return jsonify({"error": "exception not found"}), 404
+    db.log(current_user()["username"], "ccm_exception_update",
+           f"{fingerprint[:8]} -> {b.get('status') or updated['status']}")
+    return jsonify(updated)
+
+
+@app.get("/api/ccm/thresholds")
+@require_role("viewer")
+def api_ccm_thresholds():
+    return jsonify(ccm.thresholds_list())
+
+
+@app.post("/api/ccm/thresholds")
+@require_role("admin")
+def api_ccm_add_threshold():
+    b = request.get_json(silent=True) or {}
+    try:
+        row = ccm.add_threshold(b["control"], b["metric"], b["operator"],
+                                b["value"], b.get("severity", "Medium"))
+    except (KeyError, ValueError, TypeError):
+        return jsonify({"error": "control, metric, operator, value required"}), 400
+    db.log(current_user()["username"], "ccm_threshold_add",
+           f"{row['control']}.{row['metric']} {row['operator']} {row['value']:g}")
+    return jsonify(row)
+
+
+@app.delete("/api/ccm/thresholds/<int:tid>")
+@require_role("admin")
+def api_ccm_delete_threshold(tid):
+    ccm.delete_threshold(tid)
+    db.log(current_user()["username"], "ccm_threshold_delete", f"#{tid}")
+    return jsonify({"ok": True})
+
+
+@app.post("/api/ccm/alerts/<int:aid>/ack")
+@require_role("auditor")
+def api_ccm_ack_alert(aid):
+    ccm.acknowledge_alert(aid)
+    db.log(current_user()["username"], "ccm_alert_ack", f"#{aid}")
+    return jsonify({"ok": True})
+
+
+@app.get("/api/ccm/opinion")
+@require_role("viewer")
+def api_ccm_opinion():
+    return jsonify(ccm.reliance_opinion())
+
+
+# ---------- audit deliverables (Excel workpaper / PDF report) ----------
+@app.get("/api/report/xlsx")
+@require_role("viewer")
+def api_report_xlsx():
+    if not ccm.has_history():
+        return jsonify({"error": "no monitoring runs yet — run controls first"}), 400
+    user = current_user()["username"]
+    buf = reporting.build_workpaper(generated_by=user)
+    db.log(user, "report_export", "Excel workpaper")
+    fname = f"ITGC_CCM_Workpaper_{time.strftime('%Y%m%d')}.xlsx"
+    return send_file(buf, as_attachment=True, download_name=fname,
+                     mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
+@app.get("/api/report/pdf")
+@require_role("viewer")
+def api_report_pdf():
+    if not ccm.has_history():
+        return jsonify({"error": "no monitoring runs yet — run controls first"}), 400
+    user = current_user()["username"]
+    buf = reporting.build_pdf(generated_by=user)
+    db.log(user, "report_export", "PDF report")
+    fname = f"ITGC_CCM_Report_{time.strftime('%Y%m%d')}.pdf"
+    return send_file(buf, as_attachment=True, download_name=fname, mimetype="application/pdf")
+
+
 # ---------- static frontend ----------
 @app.get("/")
 def index():
@@ -171,5 +288,29 @@ def pages(page):
     return send_from_directory(FRONTEND, "index.html")
 
 
+# ---------- CCM scheduler ----------
+# The heartbeat: re-run every control test on a cadence. APScheduler is
+# optional — if it isn't installed the app still works (manual "Run now" only).
+def _start_scheduler():
+    if os.environ.get("WERKZEUG_RUN_MAIN") == "false":
+        return
+    try:
+        from apscheduler.schedulers.background import BackgroundScheduler
+    except ImportError:
+        print("[ccm] APScheduler not installed — scheduled runs disabled "
+              "(manual 'Run now' still works). pip install apscheduler to enable.")
+        return
+    interval_hours = float(os.environ.get("CCM_INTERVAL_HOURS", "24"))
+    sched = BackgroundScheduler(daemon=True)
+    sched.add_job(lambda: ccm.run_all_controls(triggered_by="scheduler"),
+                  "interval", hours=interval_hours, id="ccm_sweep",
+                  next_run_time=None)
+    sched.start()
+    print(f"[ccm] scheduler started — controls sweep every {interval_hours:g}h")
+
+
 if __name__ == "__main__":
+    # only start the scheduler in the main reloader process, not the watcher
+    if os.environ.get("WERKZEUG_RUN_MAIN") != "false":
+        _start_scheduler()
     app.run(host="0.0.0.0", port=5001, debug=True)

@@ -11,6 +11,11 @@ def _conn():
     return c
 
 
+# Public alias — the CCM service opens its own connections against the same DB.
+def connect():
+    return _conn()
+
+
 def init():
     c = _conn()
     c.executescript("""
@@ -20,6 +25,33 @@ def init():
     CREATE TABLE IF NOT EXISTS runs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       ts TEXT, username TEXT, module TEXT, summary TEXT);
+
+    -- ---- Continuous Controls Monitoring (CCM) ----
+    -- Each scheduled/manual sweep of all four engines is one timestamped run.
+    CREATE TABLE IF NOT EXISTS ccm_runs (
+      run_id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ts TEXT, triggered_by TEXT, summary TEXT);
+    -- A finding keeps its identity across runs via a stable fingerprint, so we
+    -- can age it and compute new / resolved / persisting between runs.
+    CREATE TABLE IF NOT EXISTS ccm_exceptions (
+      fingerprint TEXT PRIMARY KEY,
+      control TEXT, entity TEXT, rule TEXT, severity TEXT, detail TEXT,
+      first_seen_run INTEGER, last_seen_run INTEGER,
+      first_seen_ts TEXT, last_seen_ts TEXT, resolved_ts TEXT,
+      status TEXT DEFAULT 'open', owner TEXT DEFAULT '', note TEXT DEFAULT '');
+    -- Which fingerprints were observed in which run (drives run-to-run deltas).
+    CREATE TABLE IF NOT EXISTS ccm_run_findings (
+      run_id INTEGER, fingerprint TEXT,
+      PRIMARY KEY (run_id, fingerprint));
+    -- Alerting rules: breach when a run metric crosses the threshold.
+    CREATE TABLE IF NOT EXISTS ccm_thresholds (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      control TEXT, metric TEXT, operator TEXT, value REAL,
+      severity TEXT, enabled INTEGER DEFAULT 1);
+    CREATE TABLE IF NOT EXISTS ccm_alerts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ts TEXT, run_id INTEGER, control TEXT, metric TEXT,
+      message TEXT, severity TEXT, acknowledged INTEGER DEFAULT 0);
     """)
     c.commit(); c.close()
 

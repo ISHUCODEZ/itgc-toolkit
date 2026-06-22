@@ -1,2 +1,5 @@
 flask>=3.0
 flask-cors>=4.0
+apscheduler>=3.10   # optional: enables scheduled CCM control sweeps
+openpyxl>=3.1       # Excel workpaper export
+reportlab>=4.0      # PDF audit report export

@@ -6,4 +6,5 @@ backend/uploads/*
 !backend/uploads/.gitkeep
 .env
 *.zip
+*.log
 .DS_Store

@@ -69,7 +69,7 @@ function showLogin() {
 }
 
 function navBar(active) {
-  const items = [["", "Home"], ["sod", "Access · SoD"], ["change", "Change Mgmt"],
+  const items = [["", "Home"], ["ccm", "CCM Monitor"], ["sod", "Access · SoD"], ["change", "Change Mgmt"],
     ["recert", "Recertification"], ["framework", "Framework Map"], ["governance", "Audit Trail"]];
   return `<header class="topbar card">
     <div class="brand"><span class="brand-name">ITGC Controls Toolkit</span>

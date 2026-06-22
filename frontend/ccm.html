@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CCM Monitor · ITGC Toolkit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  .ccm-head-row { display:flex; flex-wrap:wrap; gap:1rem; align-items:flex-end; justify-content:space-between; }
+  .delta-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:.8rem; margin-top:.4rem; }
+  .delta-box { background:var(--panel-soft); border:1px solid var(--border); border-radius:12px; padding:.85rem 1rem; text-align:center; }
+  .delta-box .d-val { font-family:'IBM Plex Mono',monospace; font-size:1.7rem; font-weight:600; }
+  .delta-box .d-lab { font-family:'IBM Plex Mono',monospace; font-size:.6rem; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin-top:.2rem; }
+  .age-bar { display:flex; height:10px; border-radius:6px; overflow:hidden; margin-top:.6rem; background:var(--panel-soft); }
+  .age-bar i { display:block; height:100%; }
+  .filter-row { display:flex; gap:.4rem; flex-wrap:wrap; margin:.2rem 0 1rem; }
+  .filter-btn { font-family:'IBM Plex Mono',monospace; font-size:.68rem; letter-spacing:.06em; text-transform:uppercase; padding:.4rem .8rem; border-radius:8px; border:1px solid var(--border); background:var(--panel-soft); color:var(--muted); cursor:pointer; }
+  .filter-btn.active { background:var(--yellow); color:#101016; border-color:var(--yellow); font-weight:600; }
+  .exc-table select, .exc-table input { background:var(--panel-soft); border:1px solid var(--border); border-radius:7px; color:var(--ink); padding:.32rem .45rem; font:500 .74rem 'IBM Plex Mono',monospace; width:100%; }
+  .exc-table select:disabled, .exc-table input:disabled { opacity:.55; cursor:not-allowed; }
+  .exc-entity { font-family:'IBM Plex Mono',monospace; font-size:.78rem; color:var(--yellow); }
+  .exc-rule { font-size:.82rem; }
+  .exc-detail { font-size:.72rem; color:var(--muted); margin-top:.15rem; }
+  .age-chip { font-family:'IBM Plex Mono',monospace; font-size:.7rem; padding:.12rem .4rem; border-radius:5px; }
+  .age-fresh { background:rgba(45,183,87,.16); color:#2db757; } .age-warn { background:rgba(255,157,60,.18); color:#ff9d3c; } .age-old { background:rgba(249,93,84,.18); color:#f95d54; }
+  .save-x { background:transparent; border:1px solid var(--border); color:var(--muted); border-radius:7px; padding:.3rem .5rem; cursor:pointer; font-size:.72rem; }
+  .save-x:hover { border-color:var(--yellow); color:var(--yellow); }
+  .save-x.done { color:var(--teal); border-color:var(--teal); }
+  .thresh-table td { padding:.45rem .55rem; }
+  .ctrl-tag { font-family:'IBM Plex Mono',monospace; font-size:.6rem; letter-spacing:.08em; text-transform:uppercase; padding:.18rem .45rem; border-radius:5px; background:var(--panel-soft); border:1px solid var(--border); color:var(--muted); }
+  .alert-x { display:flex; gap:.6rem; align-items:center; justify-content:space-between; padding:.55rem .8rem; border-left:3px solid var(--red); background:rgba(249,93,84,.07); border-radius:0 8px 8px 0; margin-bottom:.5rem; font-size:.82rem; }
+  .alert-x.ackd { opacity:.5; border-left-color:var(--muted); }
+  .gate-note { font-size:.74rem; color:var(--salmon); margin-top:.5rem; }
+  .opinion-card { display:grid; grid-template-columns:240px 1fr; gap:1.4rem; padding:1.3rem 1.5rem; margin-bottom:1.3rem; align-items:center; border-left:5px solid var(--op-color,#888); }
+  @media (max-width:740px){ .opinion-card { grid-template-columns:1fr; } }
+  .op-score { text-align:center; }
+  .op-band { font-family:'IBM Plex Mono',monospace; font-size:.66rem; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); }
+  .op-label { font-family:'Fraunces',serif; font-size:1.4rem; font-weight:600; line-height:1.15; margin:.25rem 0 .5rem; color:var(--op-color,#fff); }
+  .op-gauge { font-family:'IBM Plex Mono',monospace; font-size:2.6rem; font-weight:600; line-height:1; }
+  .op-gauge span { font-size:.4em; color:var(--muted); }
+  .op-meter { height:7px; border-radius:4px; background:var(--panel-soft); overflow:hidden; margin-top:.6rem; }
+  .op-meter i { display:block; height:100%; background:var(--op-color,#888); transition:width .9s ease; }
+  .op-verdict { font-size:.9rem; line-height:1.55; margin:0 0 .6rem; }
+  .op-drivers { font-size:.78rem; color:var(--muted); line-height:1.5; }
+  .op-drivers b { color:var(--ink); font-weight:600; }
+  .report-row { display:flex; gap:.6rem; flex-wrap:wrap; margin-top:.9rem; }
+  .report-btn { display:inline-flex; align-items:center; gap:.4rem; font-family:'IBM Plex Mono',monospace; font-size:.74rem; letter-spacing:.04em; padding:.5rem .9rem; border-radius:9px; border:1px solid var(--border); background:var(--panel-soft); color:var(--ink); cursor:pointer; text-decoration:none; }
+  .report-btn:hover { border-color:var(--yellow); color:var(--yellow); }
+  .report-btn .glyph { font-weight:700; }
+  #toastWrap { position:fixed; top:1rem; left:50%; transform:translateX(-50%); z-index:200; display:flex; flex-direction:column; gap:.5rem; align-items:center; pointer-events:none; }
+  .toast { pointer-events:auto; background:var(--panel); border:1px solid var(--border); border-left:4px solid var(--teal); border-radius:10px; box-shadow:var(--shadow); padding:.7rem 1.1rem; font-size:.85rem; color:var(--ink); max-width:90vw; animation:toastIn .25s ease; }
+  .toast.warn { border-left-color:var(--salmon); }
+  .toast b { font-family:'IBM Plex Mono',monospace; }
+  @keyframes toastIn { from{ opacity:0; transform:translateY(-8px);} to{ opacity:1; transform:none;} }
+</style>
+</head>
+<body>
+<div id="toastWrap"></div>
+<div class="shell">
+  <div id="nav"></div>
+  <div class="page-head">
+    <div class="ccm-head-row">
+      <div>
+        <span class="eyebrow">CONTINUOUS CONTROLS MONITORING</span>
+        <h1>Control health, over time.</h1>
+      </div>
+      <button class="run-btn" id="runBtn">▶ Run now</button>
+    </div>
+    <p class="subtitle">Point-in-time testing is a snapshot — a sample pulled once a quarter. <strong>CCM is a heartbeat monitor</strong>: the four control tests re-run on a cadence against the full population, each run stored as a timestamped snapshot. Every finding carries a stable fingerprint, so it keeps its identity run to run — letting us trend control health, compute <strong>new / resolved / persisting</strong>, age open exceptions, and measure mean-time-to-remediate.</p>
+    <p id="runMeta" style="color:var(--muted);font-size:.78rem;margin:.4rem 0 0;"></p>
+  </div>
+
+  <div id="alertBanner"></div>
+  <div id="emptyState"></div>
+  <div id="opinionCard"></div>
+
+  <!-- KPI scorecard -->
+  <section class="kpi-grid" id="kpis"></section>
+
+  <!-- trend charts -->
+  <section class="chart-grid">
+    <div class="chart-card card">
+      <p class="card-title">SoD conflicts</p>
+      <p class="card-sub">Toxic role combinations across the population, run over run.</p>
+      <div class="chart-box"><canvas id="chSod"></canvas></div>
+    </div>
+    <div class="chart-card card">
+      <p class="card-title">Change compliance</p>
+      <p class="card-sub">% of changes that reached production fully under control.</p>
+      <div class="chart-box"><canvas id="chChange"></canvas></div>
+    </div>
+    <div class="chart-card card">
+      <p class="card-title">Recertification backlog</p>
+      <p class="card-sub">Access grants overdue or never reviewed (at-risk).</p>
+      <div class="chart-box"><canvas id="chRecert"></canvas></div>
+    </div>
+    <div class="chart-card card wide">
+      <p class="card-title">Finding flow — new · resolved · persisting</p>
+      <p class="card-sub">Run-to-run delta from stable finding fingerprints — the engine behind exception aging and MTTR.</p>
+      <div class="chart-box"><canvas id="chDelta"></canvas></div>
+    </div>
+  </section>
+
+  <!-- exceptions register -->
+  <div class="card" style="padding:1.3rem 1.5rem;margin-bottom:1.3rem;">
+    <h2 style="font-size:1.08rem;margin:0 0 .3rem;">Exception register <span id="excCount" class="ctrl-tag">—</span></h2>
+    <p class="card-sub" style="margin:0 0 .6rem;">Each finding tracked across runs with a lifecycle status, owner and remediation note. Aging is measured from when the fingerprint was first seen.</p>
+    <div class="filter-row" id="excFilters"></div>
+    <div id="gateNote"></div>
+    <div style="overflow-x:auto;">
+      <table class="grid-table exc-table" style="min-width:880px;">
+        <thead><tr>
+          <th>Control</th><th style="min-width:230px;">Finding</th><th>Severity</th>
+          <th>Age</th><th>Status</th><th style="min-width:120px;">Owner</th>
+          <th style="min-width:160px;">Note</th><th></th>
+        </tr></thead>
+        <tbody id="excBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="gov-grid">
+    <!-- thresholds -->
+    <div class="gov-card card">
+      <h2 style="font-size:1.05rem;margin:0 0 .3rem;">Alert thresholds</h2>
+      <p class="card-sub" style="margin:0 0 .6rem;">A run breaching one of these raises an alert and writes to the audit trail.</p>
+      <table class="grid-table thresh-table"><thead><tr>
+        <th>Control</th><th>Metric</th><th>Rule</th><th>Sev</th><th></th></tr></thead>
+        <tbody id="threshBody"></tbody></table>
+      <div id="threshAdd"></div>
+    </div>
+
+    <!-- alerts feed -->
+    <div class="gov-card card">
+      <h2 style="font-size:1.05rem;margin:0 0 .3rem;">Alerts</h2>
+      <p class="card-sub" style="margin:0 0 .6rem;">Threshold breaches across runs. Acknowledge to clear from the active banner.</p>
+      <div id="alertList"></div>
+    </div>
+  </div>
+</div>
+
+<script src="/static/js/common.js"></script>
+<script>
+document.getElementById("nav").innerHTML = navBar("ccm");
+
+const COL = { red:"#f95d54", teal:"#2db757", yellow:"#ffe600", blue:"#188ce5", salmon:"#ff9d3c", muted:"#9a9aa6" };
+const GRID = "rgba(243,243,240,0.06)";
+let charts = {}, excFilter = "open";
+
+const baseLineOpts = (yMax) => ({
+  responsive:true, maintainAspectRatio:false,
+  plugins:{ legend:{ labels:{ color:COL.muted, font:{ family:"'IBM Plex Mono'", size:10 } } } },
+  scales:{
+    x:{ grid:{ color:GRID }, ticks:{ color:COL.muted, font:{ size:9 }, maxRotation:0, autoSkip:true } },
+    y:{ grid:{ color:GRID }, ticks:{ color:COL.muted, font:{ size:10 } }, beginAtZero:true, ...(yMax?{max:yMax}:{}) }
+  }
+});
+
+function line(id, labels, datasets, yMax){
+  if(charts[id]) charts[id].destroy();
+  charts[id] = new Chart(document.getElementById(id), { type:"line",
+    data:{ labels, datasets }, options:baseLineOpts(yMax) });
+}
+
+function renderCharts(trend){
+  const labels = trend.map(t => t.ts.slice(5,10));   // MM-DD
+  line("chSod", labels, [
+    { label:"conflicts", data:trend.map(t=>t.sod_conflicts), borderColor:COL.red, backgroundColor:"rgba(249,93,84,.12)", fill:true, tension:.3, pointRadius:3 },
+    { label:"high sev", data:trend.map(t=>t.sod_high), borderColor:COL.yellow, borderDash:[5,4], tension:.3, pointRadius:0 },
+  ]);
+  line("chChange", labels, [
+    { label:"compliance %", data:trend.map(t=>t.change_compliance), borderColor:COL.teal, backgroundColor:"rgba(45,183,87,.12)", fill:true, tension:.3, pointRadius:3 },
+  ], 100);
+  line("chRecert", labels, [
+    { label:"at-risk grants", data:trend.map(t=>t.recert_at_risk), borderColor:COL.salmon, backgroundColor:"rgba(255,157,60,.12)", fill:true, tension:.3, pointRadius:3 },
+  ]);
+  if(charts.chDelta) charts.chDelta.destroy();
+  const deltaOpts = {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{ labels:{ color:COL.muted, font:{ family:"'IBM Plex Mono'", size:10 } } } },
+    scales:{
+      x:{ grid:{ color:GRID }, ticks:{ color:COL.muted, font:{ size:9 } } },
+      y:{ grid:{ color:GRID }, ticks:{ color:COL.muted, font:{ size:10 } }, beginAtZero:true }
+    }
+  };
+  charts.chDelta = new Chart(document.getElementById("chDelta"), {
+    type:"bar",
+    data:{ labels, datasets:[
+      { label:"new", data:trend.map(t=>t.new), backgroundColor:COL.red },
+      { label:"resolved", data:trend.map(t=>t.resolved), backgroundColor:COL.teal },
+      { label:"persisting", data:trend.map(t=>t.persisting), backgroundColor:"rgba(154,154,166,.5)" },
+    ]},
+    options: deltaOpts
+  });
+}
+
+function kpiCard(label, value, note, color){
+  return `<div class="kpi card"><div class="kpi-label">${label}</div>
+    <div class="kpi-value" ${color?`style="color:${color}"`:""}>${value}</div>
+    <div class="kpi-note">${note}</div></div>`;
+}
+
+function renderKpis(k){
+  const d = k.latest_delta || {};
+  const ab = k.aging_buckets || {};
+  const total = k.open_exceptions || 1;
+  const seg = (n,c)=> n? `<i style="width:${n/total*100}%;background:${c}"></i>`:"";
+  const ageBar = `<div class="age-bar" title="aging of open exceptions">
+    ${seg(ab["0-7"],COL.teal)}${seg(ab["8-30"],COL.yellow)}${seg(ab["31-90"],COL.salmon)}${seg(ab["90+"],COL.red)}</div>`;
+  document.getElementById("kpis").innerHTML =
+    kpiCard("Open exceptions", k.open_exceptions,
+      `${k.open_by_severity.High} high · ${k.open_by_severity.Medium} med` + ageBar) +
+    kpiCard("Latest run delta",
+      `<span style="color:${COL.red}">+${d.new??0}</span> / <span style="color:${COL.teal}">−${d.resolved??0}</span>`,
+      `${d.persisting??0} persisting · ${d.total_findings??0} total`) +
+    kpiCard("Mean time to remediate", k.mttr_days==null? "—" : k.mttr_days,
+      k.mttr_days==null? "no remediations yet" : `days · ${k.resolved_total} resolved`, COL.teal) +
+    kpiCard("Oldest open", k.oldest_open_days, "days unremediated",
+      k.oldest_open_days>90?COL.red:k.oldest_open_days>30?COL.salmon:COL.ink) +
+    kpiCard("Monitoring runs", k.total_runs,
+      k.last_run? "last: "+k.last_run.slice(0,16) : "no runs yet");
+}
+
+function renderOpinion(op){
+  const el = document.getElementById("opinionCard");
+  if(!op){ el.innerHTML = ""; return; }
+  el.innerHTML = `<div class="card opinion-card" style="--op-color:${op.color}">
+    <div class="op-score">
+      <div class="op-band">Controls reliance</div>
+      <div class="op-label">${op.band_label}</div>
+      <div class="op-gauge">${op.score}<span>/100</span></div>
+      <div class="op-meter"><i style="width:${op.score}%"></i></div>
+    </div>
+    <div>
+      <p class="op-verdict">${op.verdict}</p>
+      <div class="op-drivers"><b>Basis for opinion:</b> ${op.drivers.join(" · ")}.</div>
+      <div class="report-row">
+        <a class="report-btn" onclick="downloadReport('pdf')"><span class="glyph" style="color:#f95d54">PDF</span> Audit report</a>
+        <a class="report-btn" onclick="downloadReport('xlsx')"><span class="glyph" style="color:#2db757">XLSX</span> Workpaper</a>
+        <span style="font-size:.72rem;color:var(--muted);align-self:center">Generated from live monitoring data · logged to the audit trail</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+async function downloadReport(kind){
+  try{
+    const r = await fetch(`/api/report/${kind}`, { credentials:"include" });
+    if(!r.ok){
+      if(r.status===401){ showLogin(); return; }
+      let m = "Export failed"; try{ m = (await r.json()).error || m; }catch{}
+      toast(m, "warn"); return;
+    }
+    const blob = await r.blob();
+    const cd = r.headers.get("Content-Disposition") || "";
+    const name = (cd.match(/filename=([^;]+)/)||[])[1] || `ITGC_report.${kind}`;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = name.trim(); document.body.appendChild(a); a.click();
+    a.remove(); URL.revokeObjectURL(url);
+    toast(`${kind.toUpperCase()} downloaded — <b>${name.trim()}</b>`, "ok");
+  }catch(e){ toast(e.message, "warn"); }
+}
+
+function renderAlerts(alerts){
+  const active = alerts.filter(a=>!a.acknowledged);
+  const banner = document.getElementById("alertBanner");
+  if(active.length){
+    banner.innerHTML = `<div class="alert-banner"><span class="alert-tag">${active.length} active</span>
+      <span>${active[0].message}${active.length>1?` &nbsp;·&nbsp; +${active.length-1} more`:""}</span></div>`;
+  } else {
+    banner.innerHTML = `<div class="alert-banner ok"><span class="alert-tag">all clear</span>
+      <span>No active threshold breaches.</span></div>`;
+  }
+  const canAck = atLeast("auditor");
+  document.getElementById("alertList").innerHTML = alerts.length? alerts.map(a=>`
+    <div class="alert-x ${a.acknowledged?'ackd':''}">
+      <div><span class="sev-badge sev-${a.severity}">${a.severity}</span>
+        <span style="margin-left:.5rem">${a.message}</span>
+        <div style="color:var(--muted);font-size:.68rem;font-family:'IBM Plex Mono',monospace;margin-top:.2rem">${a.ts} · run #${a.run_id}</div></div>
+      ${a.acknowledged? '<span class="ctrl-tag">ackd</span>' :
+        canAck? `<button class="save-x" onclick="ackAlert(${a.id})">ack</button>` : ''}
+    </div>`).join("") : `<p class="card-sub">No alerts raised yet.</p>`;
+}
+
+async function ackAlert(id){
+  try{ await API.post(`ccm/alerts/${id}/ack`); load(); }catch(e){ alert(e.message); }
+}
+
+// ---- exceptions ----
+const STATUSES = ["open","acknowledged","remediated","risk-accepted","resolved"];
+function ageChip(d){
+  const cls = d>90?"age-old":d>30?"age-warn":"age-fresh";
+  return `<span class="age-chip ${cls}">${d}d</span>`;
+}
+function renderExceptions(rows){
+  document.getElementById("excCount").textContent = rows.length + " findings";
+  const canEdit = atLeast("auditor");
+  document.getElementById("gateNote").innerHTML = canEdit? "" :
+    `<p class="gate-note">Sign in as auditor or admin to update lifecycle status, owner and notes.</p>`;
+  if(!rows.length){ document.getElementById("excBody").innerHTML =
+    `<tr><td colspan="8" style="color:var(--muted);padding:1rem">No findings in this view.</td></tr>`; return; }
+  document.getElementById("excBody").innerHTML = rows.map(r=>`
+    <tr data-fp="${r.fingerprint}">
+      <td><span class="ctrl-tag">${r.control}</span></td>
+      <td><div class="exc-entity">${r.entity}</div><div class="exc-rule">${r.rule}</div>
+          <div class="exc-detail">${r.detail||""}</div></td>
+      <td><span class="sev-badge sev-${r.severity}">${r.severity}</span></td>
+      <td>${ageChip(r.age_days)}<div style="color:var(--muted);font-size:.64rem;margin-top:.2rem">${r.runs_seen} runs</div></td>
+      <td><select class="f-status" ${canEdit?"":"disabled"}>
+        ${STATUSES.map(s=>`<option ${r.status===s?"selected":""}>${s}</option>`).join("")}</select></td>
+      <td><input class="f-owner" value="${r.owner||""}" placeholder="—" ${canEdit?"":"disabled"}></td>
+      <td><input class="f-note" value="${(r.note||"").replace(/"/g,'&quot;')}" placeholder="remediation note" ${canEdit?"":"disabled"}></td>
+      <td>${canEdit?`<button class="save-x" onclick="saveExc(this)">save</button>`:""}</td>
+    </tr>`).join("");
+}
+
+async function saveExc(btn){
+  const tr = btn.closest("tr");
+  const body = {
+    status: tr.querySelector(".f-status").value,
+    owner: tr.querySelector(".f-owner").value,
+    note: tr.querySelector(".f-note").value,
+  };
+  try{
+    await API.post(`ccm/exceptions/${tr.dataset.fp}`, body);
+    btn.textContent = "saved ✓"; btn.classList.add("done");
+    setTimeout(()=>{ btn.textContent="save"; btn.classList.remove("done"); }, 1400);
+    loadDashboard();   // refresh KPIs/MTTR after a lifecycle change
+  }catch(e){ alert(e.message); }
+}
+
+function renderFilters(){
+  const opts = [["open","Open"],["resolved","Resolved"],["risk-accepted","Risk-accepted"],["all","All"]];
+  document.getElementById("excFilters").innerHTML = opts.map(([v,l])=>
+    `<button class="filter-btn ${excFilter===v?'active':''}" onclick="setFilter('${v}')">${l}</button>`).join("");
+}
+function setFilter(v){ excFilter = v; renderFilters(); loadExceptions(); }
+async function loadExceptions(){
+  try{ renderExceptions(await API.get(`ccm/exceptions?status=${excFilter}`)); }
+  catch(e){ if(e.status===401) showLogin(); }
+}
+
+// ---- thresholds ----
+const METRICS = {
+  SoD:["conflict_count","high","new_high","users_with_conflicts"],
+  Change:["compliance_rate","flagged","total"],
+  Recert:["at_risk","current_rate","total"],
+};
+async function loadThresholds(){
+  const rows = await API.get("ccm/thresholds");
+  const isAdmin = atLeast("admin");
+  document.getElementById("threshBody").innerHTML = rows.map(t=>`
+    <tr><td><span class="ctrl-tag">${t.control}</span></td>
+      <td style="font-family:'IBM Plex Mono',monospace;font-size:.74rem">${t.metric}</td>
+      <td style="font-family:'IBM Plex Mono',monospace;font-size:.74rem">${t.operator} ${(+t.value)}</td>
+      <td><span class="sev-badge sev-${t.severity}">${t.severity[0]}</span></td>
+      <td>${isAdmin?`<button class="save-x" onclick="delThresh(${t.id})">✕</button>`:""}</td></tr>`).join("");
+  document.getElementById("threshAdd").innerHTML = isAdmin? `
+    <div class="add-ticker-row" style="margin-top:.8rem;grid-template-columns:1fr 1fr;">
+      <select id="tCtrl" onchange="syncMetrics()"></select>
+      <select id="tMetric"></select>
+      <select id="tOp"><option>&gt;</option><option>&lt;</option><option>&gt;=</option><option>&lt;=</option><option>==</option></select>
+      <input id="tVal" placeholder="value" type="number" step="any">
+      <select id="tSev"><option>High</option><option>Medium</option><option>Low</option></select>
+      <button class="run-btn" onclick="addThresh()">+ Add threshold</button>
+    </div>` : `<p class="card-sub" style="margin-top:.6rem">Admin role required to edit thresholds.</p>`;
+  if(isAdmin){
+    document.getElementById("tCtrl").innerHTML = Object.keys(METRICS).map(c=>`<option>${c}</option>`).join("");
+    syncMetrics();
+  }
+}
+function syncMetrics(){
+  const c = document.getElementById("tCtrl").value;
+  document.getElementById("tMetric").innerHTML = METRICS[c].map(m=>`<option>${m}</option>`).join("");
+}
+async function addThresh(){
+  const body = { control:tCtrl.value, metric:tMetric.value, operator:tOp.value,
+                 value:parseFloat(tVal.value), severity:tSev.value };
+  if(isNaN(body.value)){ alert("Enter a numeric value"); return; }
+  try{ await API.post("ccm/thresholds", body); loadThresholds(); }catch(e){ alert(e.message); }
+}
+async function delThresh(id){
+  try{ await API.req(`ccm/thresholds/${id}`, { method:"DELETE" }); loadThresholds(); }catch(e){ alert(e.message); }
+}
+
+// ---- orchestration ----
+async function loadDashboard(){
+  const d = await API.get("ccm/dashboard");
+  document.getElementById("emptyState").innerHTML = d.has_history? "" :
+    `<div class="banner warn"><strong>No monitoring history yet.</strong> Click <code>Run now</code> to capture the first snapshot, or seed ~3 months of weekly history with <code>python backfill.py</code> in the backend folder.</div>`;
+  renderOpinion(d.opinion);
+  renderKpis(d.kpis);
+  renderCharts(d.trend);
+  renderAlerts(d.alerts);
+  const last = d.kpis.last_run;
+  document.getElementById("runMeta").textContent = last?
+    `${d.kpis.total_runs} runs stored · latest ${last} · monitoring SoD, Change & Recertification controls` : "";
+}
+
+function toast(msg, kind){
+  const t = document.createElement("div");
+  t.className = "toast" + (kind==="warn"?" warn":"");
+  t.innerHTML = msg;
+  document.getElementById("toastWrap").appendChild(t);
+  setTimeout(()=>{ t.style.opacity="0"; setTimeout(()=>t.remove(), 300); }, 4200);
+}
+
+async function runNow(){
+  const btn = document.getElementById("runBtn");
+  // Always respond to the click — never a silently-dead button.
+  if(!ME){ showLogin(); return; }
+  if(!atLeast("auditor")){
+    toast(`You're signed in as <b>${ME.role}</b> (read-only). Sign in as <b>auditor</b> or <b>admin</b> to run controls.`, "warn");
+    return;
+  }
+  btn.disabled = true; btn.textContent = "running…";
+  try{
+    const s = await API.post("ccm/run");
+    await load();
+    const a = s.alerts_raised || 0;
+    toast(`Run <b>#${s.run_id}</b> complete — <b>${s.delta.new}</b> new · <b>${s.delta.resolved}</b> resolved · <b>${s.delta.persisting}</b> persisting`
+          + (a? ` · <b>${a}</b> alert${a>1?"s":""} raised` : ""), a?"warn":"ok");
+    btn.textContent = "✓ done";
+    setTimeout(()=>{ btn.textContent="▶ Run now"; btn.disabled=false; }, 1800);
+  }catch(e){
+    btn.disabled=false; btn.textContent="▶ Run now";
+    if(e.status===401) showLogin();
+    else if(e.status===403) toast("Auditor role required to run controls.", "warn");
+    else toast(e.message, "warn");
+  }
+}
+
+async function load(){
+  try{ await loadDashboard(); await loadExceptions(); await loadThresholds(); }
+  catch(e){ if(e.status===401) showLogin(); }
+}
+
+document.getElementById("runBtn").onclick = runNow;
+renderFilters();
+loadMe().then(()=>{
+  // Keep the button clickable for everyone; gate by feedback, not a dead control.
+  if(!atLeast("auditor"))
+    document.getElementById("runBtn").title = "Sign in as auditor or admin to run controls";
+  load();
+});
+</script>
+</body>
+</html>
